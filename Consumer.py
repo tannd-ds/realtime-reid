@@ -6,16 +6,16 @@ from io import BytesIO
 import torch
 import torchvision.transforms as transforms
 
-
-# Load YOLOv5 Model
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-yolo_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-
-# Make YOLO only detect "person" (Class index 0 in COCO Dataset)
-yolo_detector.classes = [0]
+import findspark
+import pyspark
+from pyspark.sql import SparkSession
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--bootstrap_server", 
+                        type=str, 
+                        default="localhost:9092",
+                        help="Kafka Bootstrap Server")
     parser.add_argument("-t0", "--topic_0", 
                         type=str, 
                         default="topic_camera_00",
@@ -27,26 +27,49 @@ def parse_args():
     parser.add_argument("-p", "--port", 
                         type=int, 
                         default=5000,
-                        help="Server port.")
+                        help="Port to run the Application.")
     args = parser.parse_args()
     return args
 
-# Fire up the Kafka Consumers
-args = vars(parse_args())
-topic_0 = args['topic_0']
-topic_1 = args['topic_1']
-port = args['port']
+# 
+args    = vars(parse_args())
+BOOSTRAP_SERVER = args['bootstrap_server']
+TOPIC_0 = args['topic_0']
+TOPIC_1 = args['topic_1']
+PORT    = args['port']
 
+SCALA_VERSION = '2.12'
+SPARK_VERSION = '3.5.0'
+KAFKA_VERSION = '3.6.0'
+
+packages = [
+    f'org.apache.spark:spark-sql-kafka-0-10_{SCALA_VERSION}:{SPARK_VERSION}',
+    f'org.apache.kafka:kafka-clients:{KAFKA_VERSION}'
+]
+    
+# Fire up Spark
+findspark.init()
+spark = SparkSession.builder \
+    .master('local') \
+    .appName("person-reid") \
+    .config("spark.jars.packages", ",".join(packages)) \
+    .getOrCreate()
+
+# Load YOLOv5 Model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+yolo_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+yolo_detector.classes = [0] # Only detect "person" (Class index 0 in COCO Dataset)
+
+# Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
-    topic_0, 
+    TOPIC_0, 
     bootstrap_servers=['localhost:9092'])
 
 consumer2 = KafkaConsumer(
-    topic_1, 
+    TOPIC_1, 
     bootstrap_servers=['localhost:9092'])
 
 app = Flask(__name__)
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -70,6 +93,7 @@ def detect_human(input_image):
     # Perform YOLOv5 object detection
     results = yolo_detector([image])
 
+    # Crop & Save detected people for Re-ID task
     results.crop(save=True)
 
     results.render()
@@ -99,5 +123,8 @@ def get_video_stream(consumer):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffered.getvalue() + b'\r\n\r\n')
 
+def main():
+    app.run(host='0.0.0.0', port=PORT, debug=True)
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=port, debug=True)
+    main()
