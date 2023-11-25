@@ -16,11 +16,11 @@ yolo_detector.classes = [0]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t1", "--topic0", 
+    parser.add_argument("-t0", "--topic_0", 
                         type=str, 
                         default="topic_camera_00",
                         help="The Topic Name for Camera 0.")
-    parser.add_argument("-t2", "--topic1", 
+    parser.add_argument("-t1", "--topic_1", 
                         type=str, 
                         default="topic_camera_01",
                         help="The Topic Name for Camera 1.")
@@ -33,16 +33,16 @@ def parse_args():
 
 # Fire up the Kafka Consumers
 args = vars(parse_args())
-topic0 = args['topic0']
-topic1 = args['topic1']
+topic_0 = args['topic_0']
+topic_1 = args['topic_1']
 port = args['port']
 
 consumer1 = KafkaConsumer(
-    topic0, 
+    topic_0, 
     bootstrap_servers=['localhost:9092'])
 
 consumer2 = KafkaConsumer(
-    topic1, 
+    topic_1, 
     bootstrap_servers=['localhost:9092'])
 
 app = Flask(__name__)
