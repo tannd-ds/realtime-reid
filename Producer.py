@@ -1,14 +1,29 @@
-import sys
+import argparse
 import time
 import cv2
-import argparse
 from kafka import KafkaProducer
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--topic",
+                        type=str,
+                        required=True,
+                        help="The Topic Name.")
+
+    parser.add_argument("-c", "--camera",
+                        type=str,
+                        required=False,
+                        help="Path to the camera demo video.")
+    args = parser.parse_args()
+    return args
+
 
 def publish_video(video_file, topic):
     """
     Publish given video file to a specified Kafka topic. 
     Kafka Server is expected to be running on the localhost. Not partitioned.
-    
+
     ----------
     Parameters:
     - `video_file`: str, path to video file (camera demo)
@@ -20,17 +35,17 @@ def publish_video(video_file, topic):
 
     # Open file
     video = cv2.VideoCapture(video_file)
-    
+
     print('publishing video...')
 
-    while(video.isOpened()):
+    while (video.isOpened()):
         success, frame = video.read()
 
         # Ensure file was read successfully
         if not success:
             print("bad read!")
             break
-        
+
         # Convert image to png
         ret, buffer = cv2.imencode('.jpg', frame)
 
@@ -41,21 +56,12 @@ def publish_video(video_file, topic):
     video.release()
     print('publish complete')
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--topic", 
-                        type=str, 
-                        required=True,
-                        help="The Topic Name.")
-
-    parser.add_argument("-c", "--camera", 
-                        type=str, 
-                        required=False,
-                        help="Path to the camera demo video.")
-    args = parser.parse_args()
-    return args
 
 def main():
+    """
+    Producer will publish to Kafka Server a video file given as a system arg. 
+    Otherwise it will default by streaming webcam feed.
+    """
     args = vars(parse_args())
     camera = args['camera']
     topic = args['topic']
@@ -64,8 +70,4 @@ def main():
 
 
 if __name__ == '__main__':
-    """
-    Producer will publish to Kafka Server a video file given as a system arg. 
-    Otherwise it will default by streaming webcam feed.
-    """
     main()
