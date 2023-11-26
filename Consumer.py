@@ -8,6 +8,7 @@ import torch
 import findspark
 from pyspark.sql import SparkSession
 
+
 def parse_args():
     """
     Parse User's input arguments.
@@ -26,17 +27,18 @@ def parse_args():
                         default="topic_camera_01",
                         help="The Topic Name for Camera 1.")
     parser.add_argument("-p", "--port",
-                        type=int, 
+                        type=int,
                         default=5000,
                         help="Port to run the Application.")
     return parser.parse_args()
 
+
 # User input arguments Constants
-args    = vars(parse_args())
+args = vars(parse_args())
 BOOSTRAP_SERVER = args['bootstrap_server']
 TOPIC_0 = args['topic_0']
 TOPIC_1 = args['topic_1']
-PORT    = args['port']
+PORT = args['port']
 # Other setup Constants
 SCALA_VERSION = '2.12'
 SPARK_VERSION = '3.5.0'
@@ -56,8 +58,10 @@ spark = SparkSession.builder \
 
 # Load YOLOv5 Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-yolo_detector = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-yolo_detector.classes = [0] # Only detect "person" (Class index 0 in COCO Dataset)
+yolo_detector = torch.hub.load(
+    'ultralytics/yolov5', 'yolov5s', pretrained=True)
+# Only detect "person" (Class index 0 in COCO Dataset)
+yolo_detector.classes = [0]
 
 # Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
@@ -65,10 +69,12 @@ consumer1 = KafkaConsumer(
     bootstrap_servers=['localhost:9092'])
 
 consumer2 = KafkaConsumer(
-    TOPIC_1, 
+    TOPIC_1,
     bootstrap_servers=['localhost:9092'])
 
 app = Flask(__name__)
+
+
 @app.route('/')
 def index():
     """
@@ -76,14 +82,16 @@ def index():
     """
     return render_template('index.html')
 
+
 @app.route('/camera1', methods=['GET'])
 def camera1():
     """
     Route that contains the data from Camera 1.
     """
     return Response(
-        get_video_stream(consumer1), 
+        get_video_stream(consumer1),
         mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 @app.route('/camera2', methods=['GET'])
 def camera2():
@@ -91,8 +99,9 @@ def camera2():
     Route that contains the data from Camera 2.
     """
     return Response(
-        get_video_stream(consumer2), 
+        get_video_stream(consumer2),
         mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 def detect_human(input_image):
     """
@@ -132,6 +141,7 @@ def detect_human(input_image):
 
     return buffered
 
+
 def get_video_stream(consumer):
     """
     Here is where we receive streamed images from the Kafka Server and convert 
@@ -142,8 +152,10 @@ def get_video_stream(consumer):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffered.getvalue() + b'\r\n\r\n')
 
+
 def main():
     app.run(host='0.0.0.0', port=PORT, debug=True)
+
 
 if __name__ == "__main__":
     main()
