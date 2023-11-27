@@ -2,3 +2,4 @@ runs/
 videos/
 
 *.pt
+__pycache__/
