@@ -32,7 +32,6 @@ def parse_args():
                         help="Port to run the Application.")
     return parser.parse_args()
 
-
 # User input arguments Constants
 args = vars(parse_args())
 BOOSTRAP_SERVER = args['bootstrap_server']
@@ -59,18 +58,21 @@ spark = SparkSession.builder \
 # Load YOLOv5 Model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 yolo_detector = torch.hub.load(
-    'ultralytics/yolov5', 'yolov5s', pretrained=True)
+    'ultralytics/yolov5',
+    'yolov5s',
+    pretrained=True
+)
 # Only detect "person" (Class index 0 in COCO Dataset)
 yolo_detector.classes = [0]
 
 # Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
     TOPIC_0,
-    bootstrap_servers=['localhost:9092'])
+    bootstrap_servers=[BOOSTRAP_SERVER])
 
 consumer2 = KafkaConsumer(
     TOPIC_1,
-    bootstrap_servers=['localhost:9092'])
+    bootstrap_servers=[BOOSTRAP_SERVER])
 
 app = Flask(__name__)
 
