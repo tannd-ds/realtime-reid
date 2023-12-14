@@ -2,4 +2,6 @@ runs/
 videos/
 
 *.pt
+*.pth
 __pycache__/
+__*.ipynb
