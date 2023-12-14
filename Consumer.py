@@ -1,9 +1,8 @@
 import argparse
-from io import BytesIO
 from flask import Flask, Response, render_template
 from kafka import KafkaConsumer
-from PIL import Image, ImageDraw
 import torch
+from realtime_reid import PersonDetector
 
 import findspark
 from pyspark.sql import SparkSession
@@ -32,6 +31,7 @@ def parse_args():
                         help="Port to run the Application.")
     return parser.parse_args()
 
+
 # User input arguments Constants
 args = vars(parse_args())
 BOOSTRAP_SERVER = args['bootstrap_server']
@@ -55,15 +55,7 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", ",".join(packages)) \
     .getOrCreate()
 
-# Load YOLOv5 Model
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-yolo_detector = torch.hub.load(
-    'ultralytics/yolov5',
-    'yolov5s',
-    pretrained=True
-)
-# Only detect "person" (Class index 0 in COCO Dataset)
-yolo_detector.classes = [0]
+detector = PersonDetector()
 
 # Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
@@ -105,52 +97,13 @@ def camera2():
         mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-def detect_human(input_image):
-    """
-    Return Images with detected boxes for each person.
-
-    Parameters:
-    ----------
-    input_image: byte,
-            an Image stored in `bytes` type that need to be detected.
-
-    Returns
-    ----------
-    The result Image after drawing detected boxes, stored in `bytes`.
-    """
-    # Convert the received image bytes to a PIL Image
-    image = Image.open(BytesIO(input_image))
-
-    # Perform YOLOv5 object detection
-    results = yolo_detector([image])
-
-    # Crop & Save detected people for Re-ID task
-    results.crop(save=True)
-
-    results.render()
-
-    # Draw bounding boxes around detected objects
-    for detection in results.xyxy[0]:
-        xmin, ymin, xmax, ymax = map(int, detection[:4])
-        label = f"{yolo_detector.names[int(detection[-1])]} {detection[-2]:.2f}"
-        draw = ImageDraw.Draw(image)
-        draw.rectangle([xmin, ymin, xmax, ymax], outline="red", width=2)
-        draw.text((xmin, ymin), label, fill="red")
-
-    # Convert the modified image back to bytes
-    buffered = BytesIO()
-    image.save(buffered, format="JPEG")
-
-    return buffered
-
-
 def get_video_stream(consumer):
     """
     Here is where we receive streamed images from the Kafka Server and convert 
     them to a Flask-readable format.
     """
     for msg in consumer:
-        buffered = detect_human(msg.value)
+        buffered = detector.detect_human(msg.value)
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffered.getvalue() + b'\r\n\r\n')
 
