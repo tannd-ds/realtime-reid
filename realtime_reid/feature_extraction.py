@@ -1,10 +1,9 @@
 import os
+import numpy as np
 from PIL import Image
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torchvision import transforms
-from tqdm import tqdm
 from .resnet_base import ft_net
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -50,17 +49,41 @@ class ResNetReID():
         network.load_state_dict(torch.load(save_path))
         return network
 
-    def fliplr(self, img):
+    @staticmethod
+    def fliplr(img: torch.Tensor):
         """flip horizontal"""
         inv_idx = torch.arange(img.size(3)-1, -1, -1).long()  # N x C x H x W
         img_flip = img.index_select(3, inv_idx)
         return img_flip
 
-    def extract_feature_single(self, img_path: str):
+    def extract_feature(
+        self,
+        input_img: str | np.ndarray
+    ) -> torch.Tensor:
         """
-        Extract feature from a trained `model`, with the input is an Image (or list of Images).
+        Extract feature of an Image.
+
+        Parameters
+        ----------
+        input_img: str | np.ndarray
+            The image that need to be extract feature.
+            - If input a string, it should be a path to an image
+            - If input a numpy array, it should be the image itself.
+
+        Returns
+        -------
+        the feature (tensor) of the input image.
         """
-        img = Image.open(img_path)
+
+        # Handle different input type
+        img = None
+        if isinstance(input_img, str):
+            img = Image.open(input_img)
+        elif isinstance(input_img, np.ndarray):
+            img = Image.fromarray(input_img)
+        else:
+            raise TypeError(f"Unexpected img type, got {type(input_img)}")
+
         img = self.data_transforms(img)
         img = img.unsqueeze(0)
         n, c, h, w = img.size()
@@ -76,6 +99,7 @@ class ResNetReID():
             with torch.no_grad():
                 outputs = self.model(input_img)
             ff += outputs
+
         # norm feature
         fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
         ff = ff.div(fnorm.expand_as(ff))
