@@ -10,9 +10,9 @@
 
 ## Introduction
 
-This is a practical Project using multiple technologies such as Apache Kafka, and Apache Spark, with simple Deep Learning Models like YOLOv5 (for Human Detection) and ... (For Person Re-identification) to address Human Re-identification in real-time.
+This project leverages a combination of cutting-edge technologies, including Apache Kafka and Apache Spark, along with straightforward Deep Learning Models like YOLOv5 (for *Human Detection*) and ResNet (for *Person Re-identification*). The primary objective is to tackle the challenge of *Person Re-identification* in real-time within a given scenario.
 
-The scenario is that there are multiple Cameras in a building, we want to detect people who appear in these cameras and identify them with unique IDs. A person can appear in one camera at this point and re-appear in another camera later, our goal is to identify this person in these cameras with the same ID (a.k.a Person Re-identification task).
+In the context of a building equipped with multiple cameras, the aim is to detect individuals across these camera feeds and assign unique IDs to each person. Notably, a person may initially appear in one camera and subsequently reappear in another. The overarching objective is to seamlessly identify the same individual across these cameras by associating them with a consistent ID—a task commonly referred to as *Person Re-identification*.
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ The scenario is that there are multiple Cameras in a building, we want to detect
 - `Apache Kafka (>= 3.6.0)`
 
 Note: 
-- I tested this on `python=3.12` (on November 2023) but it didn't work. You can test it on the latest version, if it still doesn't work, I recommend using `python=3.11`.
+- I tested this on `python=3.12` (November 2023) but it didn't work. You can test it on the latest version, if it still doesn't work, I recommend using `python=3.11`.
 
 ## Getting Started
 - Install Apache Spark and Apache Kafka (Remember to test if it works).
@@ -36,7 +36,7 @@ conda activate human_reid
 pip install -r requirements.txt
 ```
 
-## 📖 Usage
+## Usage
 
 - Run `Zookeeper`
 ```
@@ -62,6 +62,9 @@ python Producer.py --topic topic_camera_01 --camera ./videos/camera_01.mp4
 ```
 
 - Now Refresh [`localhost:5000`](localhost:5000), you should see both footages displayed on the page. 
+
+## Contribution
+This repo is continuously fixed and updated over time, feel free to fix some issues/bugs, all are welcome here!
 
 ## About Us
 
