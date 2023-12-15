@@ -3,7 +3,6 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, Response, render_template
 from kafka import KafkaConsumer
-import torch
 from realtime_reid.person_detector import PersonDetector
 from realtime_reid.feature_extraction import ResNetReID
 from realtime_reid.classifier import PersonReID
@@ -61,7 +60,7 @@ spark = SparkSession.builder \
 
 person_detector = PersonDetector()
 fe_model = ResNetReID()
-classifier = PersonReID(from_scratch=True)
+classifier = PersonReID()
 
 # Settings
 colors = ['red', 'green', 'blue', 'cyan', 'black'] * 1000
@@ -119,8 +118,11 @@ def get_video_stream(consumer):
         ids = []
         for person in detected_data['detected_ppl']:
             current_person = fe_model.extract_feature(person['im'])
-            ids.append(classifier.identify(
-                current_person, update_gallery=True))
+            current_id = classifier.identify(
+                current_person,
+                update_embeddings=True
+            )
+            ids.append(current_id)
 
         final_img = Image.open(BytesIO(msg.value))
         for index, detection in enumerate(detected_data['result'].xyxy[0]):
