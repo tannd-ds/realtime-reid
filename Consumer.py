@@ -1,8 +1,12 @@
 import argparse
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, Response, render_template
 from kafka import KafkaConsumer
 import torch
-from realtime_reid import PersonDetector
+from realtime_reid.person_detector import PersonDetector
+from realtime_reid.feature_extraction import ResNetReID
+from realtime_reid.classifier import PersonReID
 
 import findspark
 from pyspark.sql import SparkSession
@@ -55,7 +59,14 @@ spark = SparkSession.builder \
     .config("spark.jars.packages", ",".join(packages)) \
     .getOrCreate()
 
-detector = PersonDetector()
+person_detector = PersonDetector()
+fe_model = ResNetReID()
+classifier = PersonReID(from_scratch=True)
+
+# Settings
+colors = ['red', 'green', 'blue', 'cyan', 'black'] * 1000
+font = ImageFont.truetype("./static/fonts/open_san.ttf", 40)
+
 
 # Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
@@ -103,7 +114,27 @@ def get_video_stream(consumer):
     them to a Flask-readable format.
     """
     for msg in consumer:
-        buffered = detector.detect_human(msg.value)
+        detected_data = person_detector.detect_complex(msg.value)
+
+        ids = []
+        for person in detected_data['detected_ppl']:
+            current_person = fe_model.extract_feature(person['im'])
+            ids.append(classifier.identify(
+                current_person, update_gallery=True))
+
+        final_img = Image.open(BytesIO(msg.value))
+        for index, detection in enumerate(detected_data['result'].xyxy[0]):
+            person_id = ids[index]
+            xmin, ymin, xmax, ymax = map(int, detection[:4])
+            label = f" {person_id}"
+            draw = ImageDraw.Draw(final_img)
+            draw.rectangle([xmin, ymin, xmax, ymax],
+                           outline=colors[person_id], width=4)
+            draw.text((xmin, ymin), label, fill=colors[person_id], font=font)
+
+        buffered = BytesIO()
+        final_img.save(buffered, format='jpeg')
+
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffered.getvalue() + b'\r\n\r\n')
 
