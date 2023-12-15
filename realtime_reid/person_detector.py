@@ -1,6 +1,6 @@
-import torch
 from io import BytesIO
-from PIL import Image, ImageDraw
+from PIL import Image
+import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,14 +17,16 @@ class PersonDetector():
         # Only detect "person" (Class index 0 in COCO Dataset)
         self.yolo.classes = [0]
 
-    def detect_human(self, input_image):
+    def detect_human(self, input_image: bytes, save_detection: bool = False):
         """
         Return Images with detected boxes for each person.
 
         Parameters
         ----------
-        input_image: byte
+        input_image: bytes
             an Image stored in `bytes` type that need to be detected.
+        save_detection: bool, defaut False
+            wheater to save image and detected people into disk.
 
         Returns
         -------
@@ -37,20 +39,38 @@ class PersonDetector():
         results = self.yolo([image])
 
         # Crop & Save detected people for Re-ID task
-        results.crop(save=True)
-
-        results.render()
-
-        # Draw bounding boxes around detected objects
-        for detection in results.xyxy[0]:
-            xmin, ymin, xmax, ymax = map(int, detection[:4])
-            label = f"{self.yolo.names[int(detection[-1])]} {detection[-2]:.2f}"
-            draw = ImageDraw.Draw(image)
-            draw.rectangle([xmin, ymin, xmax, ymax], outline="red", width=2)
-            draw.text((xmin, ymin), label, fill="red")
+        results.crop(save=save_detection)
+        drawed_image = Image.fromarray(results.render()[0])
 
         # Convert the modified image back to bytes
         buffered = BytesIO()
-        image.save(buffered, format="JPEG")
+        drawed_image.save(buffered, format="JPEG")
 
         return buffered
+
+    def detect_complex(self, input_bytes: bytes):
+        """
+        Return (alot of) data store of a detected image, save in `dict`.
+
+        Parameters
+        ----------
+        input_bytes: byte
+            an Image stored in `bytes` type that need to be detected.
+
+        Returns
+        -------
+        The result Image after drawing detected boxes, stored in `bytes`.
+        """
+        # Convert the received image bytes to a PIL Image
+        image = Image.open(BytesIO(input_bytes))
+
+        # Perform YOLOv5 object detection
+        results = self.yolo([image])
+
+        # Crop & Save detected people for Re-ID task
+        detected_ppl = results.crop(save=True)
+
+        return {
+            'result': results,
+            'detected_ppl': detected_ppl,
+        }
