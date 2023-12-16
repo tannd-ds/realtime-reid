@@ -1,11 +1,5 @@
-import os
 import argparse
-import time
-import cv2
-from kafka import KafkaProducer
 from realtime_reid.streaming import VideoProducer
-
-INTERVAL = 0.2
 
 
 def parse_args():
@@ -19,6 +13,11 @@ def parse_args():
                         type=str,
                         required=False,
                         help="Path to the camera demo video.")
+
+    parser.add_argument("-i", "--interval",
+                        type=float,
+                        required=False,
+                        help="The delay between each image.")
     args = parser.parse_args()
     return args
 
@@ -31,9 +30,10 @@ def main():
     args = vars(parse_args())
     camera = args['camera']
     topic = args['topic']
+    interval = args['interval']
 
-    producer = VideoProducer(topic, camera)
-    producer.publish_video(video_path=camera, topic=topic)
+    producer = VideoProducer(topic, interval)
+    producer.publish_video(camera)
 
 
 if __name__ == '__main__':
