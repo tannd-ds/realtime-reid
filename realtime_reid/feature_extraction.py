@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from PIL import Image
 import torch
@@ -9,7 +8,7 @@ from .resnet_base import ft_net
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 h, w = 256, 128
 # Model Parameters
-MODEL_PATH = 're_id/checkpoints/net_last.pth'
+MODEL_PATH = 'checkpoints/net_last.pth'
 N_CLASSES = 751
 STRIDE = 2
 LINEAR_NUM = 512
@@ -41,13 +40,18 @@ class ResNetReID():
         self.model = self.model.eval()
         self.model = self.model.to(device)
 
-    def load_network(self, network):
+    def load_network(self, model_structure, pt_model_path: str = MODEL_PATH):
         """
         Load model checkpoint from the pth file, then return the loaded model.
         """
-        save_path = os.path.join(MODEL_PATH)
-        network.load_state_dict(torch.load(save_path))
-        return network
+        try:
+            print(f"Loading model from {pt_model_path}...")
+            model_structure.load_state_dict(torch.load(pt_model_path))
+        except FileNotFoundError:
+            print(
+                f"Failed to load model from {pt_model_path},",
+                "did you train the model?")
+        return model_structure
 
     @staticmethod
     def fliplr(img: torch.Tensor):
