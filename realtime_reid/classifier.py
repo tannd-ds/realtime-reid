@@ -102,15 +102,16 @@ class PersonReID():
             top_scores, top_ppl = (top.tolist() for top in top_k)
 
             if top_scores[0] > self.CONFIDENT_THRESHOLD['normal']:
-                target_id = top_ppl[0]
+                target_id = self.ids[top_ppl[0]]
 
             if top_scores[0] < self.CONFIDENT_THRESHOLD['extreme']:
                 new_embeddings = torch.cat((self.embeddings, target), dim=0)
 
         if update_embeddings:
             self.embeddings = new_embeddings
-            self.ids.append(target_id)
+            if new_embeddings.shape[0] > len(self.ids):
+                self.ids.append(target_id)
             if self.current_max_id == target_id:
                 self.current_max_id += 1
 
-        return target_id
+        return self.ids[target_id]

@@ -31,6 +31,7 @@ class VideoProducer():
         while (video.isOpened()):
             success, frame = video.read()
 
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # Ensure file was read successfully
             if not success:
                 print("bad read!")
