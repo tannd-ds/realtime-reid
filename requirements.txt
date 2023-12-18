@@ -1,0 +1,10 @@
+numpy
+pandas
+Pillow
+opencv-python
+torch
+torchvision
+flask
+kafka-python
+pyspark
+findspark
