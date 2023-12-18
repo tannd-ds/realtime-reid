@@ -1,15 +1,8 @@
 import argparse
 from io import BytesIO
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 from flask import Flask, Response, render_template
 from kafka import KafkaConsumer
-from realtime_reid.person_detector import PersonDetector
-from realtime_reid.feature_extraction import ResNetReID
-from realtime_reid.classifier import PersonReID
-
-import findspark
-from pyspark.sql import SparkSession
+from realtime_reid import Pipeline
 
 
 def parse_args():
@@ -43,31 +36,7 @@ TOPIC_0 = args['topic_0']
 TOPIC_1 = args['topic_1']
 PORT = args['port']
 
-# # Other setup Constants
-# SCALA_VERSION = '2.12'
-# SPARK_VERSION = '3.5.0'
-# KAFKA_VERSION = '3.6.0'
-
-# packages = [
-#     f'org.apache.spark:spark-sql-kafka-0-10_{SCALA_VERSION}:{SPARK_VERSION}',
-#     f'org.apache.kafka:kafka-clients:{KAFKA_VERSION}'
-# ]
-# # Fire up Spark
-# findspark.init()
-# spark = SparkSession.builder \
-#     .master('local') \
-#     .appName("person-reid") \
-#     .config("spark.jars.packages", ",".join(packages)) \
-#     .getOrCreate()
-
-person_detector = PersonDetector()
-fe_model = ResNetReID()
-classifier = PersonReID()
-
-# Settings
-colors = ['red', 'green', 'blue', 'cyan', 'black'] * 1000
-font = ImageFont.truetype("./static/fonts/open_san.ttf", 40)
-
+reid_pipeline = Pipeline()
 
 # Fire up the Kafka Consumers
 consumer1 = KafkaConsumer(
@@ -91,9 +60,7 @@ def index():
 
 @app.route('/camera1', methods=['GET'])
 def camera1():
-    """
-    Route that contains the data from Camera 1.
-    """
+    """Route that contains the data from Camera 1."""
     return Response(
         get_video_stream(consumer1),
         mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -101,9 +68,7 @@ def camera1():
 
 @app.route('/camera2', methods=['GET'])
 def camera2():
-    """
-    Route that contains the data from Camera 2.
-    """
+    """Route that contains the data from Camera 2."""
     return Response(
         get_video_stream(consumer2),
         mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -111,41 +76,21 @@ def camera2():
 
 def get_video_stream(consumer):
     """
-    Here is where we receive streamed images from the Kafka Server and convert 
-    them to a Flask-readable format.
+    Generates a video stream by processing messages from a consumer.
+
+    Parameters
+    ----------
+    consumer : object
+        The consumer object that provides messages.
+
+    Yields
+    ------
+    bytes
+        A frame of the video stream in the form of a JPEG image.
     """
-    # height, width, channel = cropped_img.shape
-    # if 1.5 * width > height:
-    #     current_id = -1
-    # else:
     for msg in consumer:
-        detected_data = person_detector.detect_complex(msg.value)
 
-        final_img = Image.open(BytesIO(msg.value))
-        for detection in detected_data['result'].xyxy[0]:
-            xmin, ymin, xmax, ymax = map(int, detection[:4])
-
-            cropped_img = final_img.crop((xmin, ymin, xmax, ymax))
-            cropped_img = np.array(cropped_img)
-            current_person = fe_model.extract_feature(cropped_img)
-            current_id = classifier.identify(
-                current_person,
-                update_embeddings=True
-            )
-
-            label = f" ID: {current_id}"
-            draw = ImageDraw.Draw(final_img)
-            draw.rectangle(
-                [xmin, ymin, xmax, ymax],
-                outline=colors[current_id],
-                width=4,
-            )
-            draw.text(
-                xy=(xmin, ymin),
-                text=label,
-                fill=colors[current_id],
-                font=font,
-            )
+        final_img = reid_pipeline.process(msg)
 
         buffered = BytesIO()
         final_img.save(buffered, format='jpeg')
