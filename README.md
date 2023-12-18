@@ -1,4 +1,4 @@
-<h1 align="center">⚡Real-time Human Re-Identification⚡<br><i></i></h1>
+<h1 align="center">⚡Real-Time Person Re-ID in Multi-Camera Surveillance Systems⚡<br></h1>
 
 <p align="center">Build with</p>
 <p align="center">
