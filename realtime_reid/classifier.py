@@ -33,8 +33,8 @@ class PersonReID():
 
         # Set up the threshold
         self.CONFIDENT_THRESHOLD = {
-            'extreme': 0.95,
-            'normal': 0.65,
+            'extreme': 0.90,
+            'normal': 0.80,
         }
 
         # Init the embeddings
@@ -104,8 +104,7 @@ class PersonReID():
             if top_scores[0] > self.CONFIDENT_THRESHOLD['normal']:
                 target_id = self.ids[top_ppl[0]]
 
-            if top_scores[0] < self.CONFIDENT_THRESHOLD['extreme']:
-                new_embeddings = torch.cat((self.embeddings, target), dim=0)
+            new_embeddings = torch.cat((self.embeddings, target), dim=0)
 
         if update_embeddings:
             self.embeddings = new_embeddings
@@ -114,4 +113,4 @@ class PersonReID():
             if self.current_max_id == target_id:
                 self.current_max_id += 1
 
-        return self.ids[target_id]
+        return target_id
