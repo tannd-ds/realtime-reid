@@ -1,5 +1,5 @@
 import argparse
-from realtime_reid.streaming import VideoProducer
+from streaming import VideoProducer
 
 
 def parse_args():
