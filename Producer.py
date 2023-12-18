@@ -1,7 +1,5 @@
 import argparse
-import time
-import cv2
-from kafka import KafkaProducer
+from realtime_reid.streaming import VideoProducer
 
 
 def parse_args():
@@ -15,46 +13,13 @@ def parse_args():
                         type=str,
                         required=False,
                         help="Path to the camera demo video.")
+
+    parser.add_argument("-i", "--interval",
+                        type=float,
+                        required=False,
+                        help="The delay between each image.")
     args = parser.parse_args()
     return args
-
-
-def publish_video(video_file, topic):
-    """
-    Publish given video file to a specified Kafka topic. 
-    Kafka Server is expected to be running on the localhost. Not partitioned.
-
-    ----------
-    Parameters:
-    - `video_file`: str, path to video file (camera demo)
-    - `topic`: str, the topic to be published to.
-    """
-
-    # Start up producer
-    producer = KafkaProducer(bootstrap_servers='localhost:9092')
-
-    # Open file
-    video = cv2.VideoCapture(video_file)
-
-    print('publishing video...')
-
-    while (video.isOpened()):
-        success, frame = video.read()
-
-        # Ensure file was read successfully
-        if not success:
-            print("bad read!")
-            break
-
-        # Convert image to png
-        ret, buffer = cv2.imencode('.jpg', frame)
-
-        # Convert to bytes and send to kafka
-        producer.send(topic, buffer.tobytes())
-
-        time.sleep(0.05)
-    video.release()
-    print('publish complete')
 
 
 def main():
@@ -65,8 +30,10 @@ def main():
     args = vars(parse_args())
     camera = args['camera']
     topic = args['topic']
+    interval = args['interval']
 
-    publish_video(video_file=camera, topic=topic)
+    producer = VideoProducer(topic, interval)
+    producer.publish_video(camera)
 
 
 if __name__ == '__main__':
