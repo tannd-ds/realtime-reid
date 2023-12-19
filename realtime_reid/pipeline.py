@@ -41,10 +41,14 @@ class Pipeline:
             cropped_img = final_img.crop((xmin, ymin, xmax, ymax))
             cropped_img = np.array(cropped_img)
 
-            # A small solution for the issue #3 (initial partial visibility)
-            # This is just a temporary solution.
-            height, width, channel = cropped_img.shape
-            if 1.5 * width > height:
+            # A small solution for #3 (initial partial visibility)
+            # This is a temporary solution, but it works beautifully.
+            # Solution: Check if the person is fully visible
+            offset = 2  # because the bbox is not (always) accurate
+            lower_bound = ((xmin - offset) <= 0 or (ymin - offset) <= 0)
+            upper_bound = (xmax + offset >= final_img.width
+                           or (ymax + offset) >= final_img.height)
+            if lower_bound or upper_bound:
                 current_id = -1
             else:
                 current_person = self.fe_model.extract_feature(cropped_img)
