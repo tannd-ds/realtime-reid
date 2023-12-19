@@ -35,6 +35,8 @@ class Pipeline:
         detected_data = self.person_detector.detect_complex(msg.value)
 
         final_img = Image.open(BytesIO(msg.value))
+        draw = ImageDraw.Draw(final_img)
+
         for detection in detected_data['result'].xyxy[0]:
             xmin, ymin, xmax, ymax = map(int, detection[:4])
 
@@ -59,7 +61,6 @@ class Pipeline:
 
             # Draw bounding box and label
             label = f" ID: {current_id}"
-            draw = ImageDraw.Draw(final_img)
             draw.rectangle(
                 [xmin, ymin, xmax, ymax],
                 outline=self.colors[current_id],
