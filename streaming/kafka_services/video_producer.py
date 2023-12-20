@@ -16,6 +16,8 @@ class VideoProducer():
         self.TOPIC = topic
 
     def encode_and_produce(self, frame, interval: int):
+        frame = self.process_frame(frame)
+
         # Convert image to jpg format
         _, buffer = cv2.imencode('.jpg', frame)
 
@@ -75,3 +77,13 @@ class VideoProducer():
             print('Publish complete!')
         except KeyboardInterrupt:
             print("Publish stopped.")
+
+    @staticmethod
+    def process_frame(frame):
+        # Image with fixed size, reserve aspect ratio
+        original_ratio = frame.shape[1] / frame.shape[0]
+        width = 640
+        height = int(width / original_ratio)
+        frame = cv2.resize(frame, (width, height))
+
+        return frame

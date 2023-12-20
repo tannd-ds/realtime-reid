@@ -51,7 +51,6 @@ class PersonDetector():
     def detect_complex(
         self,
         input_bytes: bytes,
-        save_detection: bool = False
     ):
         """
         Return (alot of) data store of a detected image, save in `dict`.
@@ -60,9 +59,6 @@ class PersonDetector():
         ----------
         input_bytes: byte
             an Image stored in `bytes` type that need to be detected.
-
-        save_detection: bool, defaut False
-            wheater to save image and detected people into disk.
 
         Returns
         -------
@@ -73,11 +69,6 @@ class PersonDetector():
 
         # Perform YOLOv5 object detection
         results = self.yolo([image])
-
-        # Crop & Save detected people for Re-ID task
-        detected_ppl = results.crop(save=save_detection)
-
         return {
             'result': results,
-            'detected_ppl': detected_ppl,
         }
