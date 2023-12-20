@@ -1,5 +1,5 @@
+import cv2
 import numpy as np
-from PIL import Image
 import torch
 from torch import nn
 from torchvision import transforms
@@ -19,8 +19,8 @@ class ResNetReID():
 
         # Init Data Transform Pipeline
         self.data_transforms = transforms.Compose([
-            transforms.Resize((h, w), interpolation=3),
             transforms.ToTensor(),
+            transforms.Resize((h, w), interpolation=3),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
@@ -57,6 +57,7 @@ class ResNetReID():
     def fliplr(img: torch.Tensor):
         """flip horizontal"""
         inv_idx = torch.arange(img.size(3)-1, -1, -1).long()  # N x C x H x W
+        inv_idx = inv_idx.to(device)
         img_flip = img.index_select(3, inv_idx)
         return img_flip
 
@@ -82,9 +83,9 @@ class ResNetReID():
         # Handle different input type
         img = None
         if isinstance(input_img, str):
-            img = Image.open(input_img)
+            img = cv2.imread(input_img)
         elif isinstance(input_img, np.ndarray):
-            img = Image.fromarray(input_img)
+            img = input_img
         else:
             raise TypeError(f"Unexpected img type, got {type(input_img)}")
 
@@ -98,10 +99,10 @@ class ResNetReID():
         for i in range(2):
             if (i == 1):
                 img = self.fliplr(img)
-            input_img = img.to(device)
+            img = img.to(device)
 
             with torch.no_grad():
-                outputs = self.model(input_img)
+                outputs = self.model(img)
             ff += outputs
 
         # norm feature
