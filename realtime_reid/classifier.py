@@ -34,8 +34,9 @@ class PersonReID():
         # Set up the threshold
         self.CONFIDENT_THRESHOLD = {
             'extreme': 0.90,
-            'normal': 0.80,
+            'normal': 0.85,
         }
+        self.cos_scorer = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
 
         # Init the embeddings
         if from_file is not None:
@@ -59,8 +60,7 @@ class PersonReID():
         results = None
         if score == "cosine":
             # Calculate score using Cosine Similarity
-            cos = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
-            results = cos(target, self.embeddings)
+            results = self.cos_scorer(target, self.embeddings)
         return results
 
     def identify(
@@ -94,15 +94,11 @@ class PersonReID():
         else:
             results = self.calculate_score(target)
 
-            # Set up to get top_k
-            results = torch.tensor(results)
-            k = min(10, self.embeddings.shape[0])
-
-            top_k = torch.topk(results, k=k)
-            top_scores, top_ppl = (top.tolist() for top in top_k)
-
-            if top_scores[0] > self.CONFIDENT_THRESHOLD['normal']:
-                target_id = self.ids[top_ppl[0]]
+            # results = torch.tensor(results)
+            top_score, top_ppl = torch.max(results, dim=0)
+            top_score, top_ppl = top_score.item(), top_ppl.item()
+            if top_score > self.CONFIDENT_THRESHOLD['normal']:
+                target_id = self.ids[top_ppl]
 
             new_embeddings = torch.cat((self.embeddings, target), dim=0)
 

@@ -1,5 +1,5 @@
 import argparse
-from io import BytesIO
+import cv2
 from flask import Flask, Response, render_template
 from kafka import KafkaConsumer
 from realtime_reid import Pipeline
@@ -92,11 +92,13 @@ def get_video_stream(consumer):
 
         final_img = reid_pipeline.process(msg)
 
-        buffered = BytesIO()
-        final_img.save(buffered, format='jpeg')
+        is_success, buffer = cv2.imencode(".jpg", final_img)
+        buffered = buffer.tobytes()
 
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + buffered.getvalue() + b'\r\n\r\n')
+               b'Content-Type: image/jpeg\r\n\r\n'
+               + buffered
+               + b'\r\n\r\n')
 
 
 def main():

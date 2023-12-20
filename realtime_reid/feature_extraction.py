@@ -1,5 +1,5 @@
+import cv2
 import numpy as np
-from PIL import Image
 import torch
 from torch import nn
 from torchvision import transforms
@@ -19,8 +19,8 @@ class ResNetReID():
 
         # Init Data Transform Pipeline
         self.data_transforms = transforms.Compose([
-            transforms.Resize((h, w), interpolation=3),
             transforms.ToTensor(),
+            transforms.Resize((h, w), interpolation=3),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
@@ -57,6 +57,7 @@ class ResNetReID():
     def fliplr(img: torch.Tensor):
         """flip horizontal"""
         inv_idx = torch.arange(img.size(3)-1, -1, -1).long()  # N x C x H x W
+        inv_idx = inv_idx.to(device)
         img_flip = img.index_select(3, inv_idx)
         return img_flip
 
@@ -82,29 +83,30 @@ class ResNetReID():
         # Handle different input type
         img = None
         if isinstance(input_img, str):
-            img = Image.open(input_img)
+            img = cv2.imread(input_img)
         elif isinstance(input_img, np.ndarray):
-            img = Image.fromarray(input_img)
+            img = input_img
         else:
             raise TypeError(f"Unexpected img type, got {type(input_img)}")
 
         img = self.data_transforms(img)
         img = img.unsqueeze(0)
+        img = img.to(device)
         n, c, h, w = img.size()
 
-        ff = torch.FloatTensor(n, LINEAR_NUM).zero_()
-        ff = ff.to(device)
+        feature_map = torch.FloatTensor(n, LINEAR_NUM).zero_()
+        feature_map = feature_map.to(device)
 
         for i in range(2):
-            if (i == 1):
+            if i == 1:
                 img = self.fliplr(img)
-            input_img = img.to(device)
 
             with torch.no_grad():
-                outputs = self.model(input_img)
-            ff += outputs
+                outputs = self.model(img)
+            feature_map += outputs
 
-        # norm feature
-        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-        ff = ff.div(fnorm.expand_as(ff))
-        return ff
+        # Normalize feature
+        fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
+        feature_map = feature_map.div(fnorm.expand_as(feature_map))
+
+        return feature_map

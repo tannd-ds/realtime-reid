@@ -1,5 +1,4 @@
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+import cv2
 import numpy as np
 
 from realtime_reid.person_detector import PersonDetector
@@ -16,7 +15,16 @@ class Pipeline:
         self.classifier = PersonReID()
         # Style for bounding boxes and labels
         self.colors = ['red', 'green', 'blue', 'cyan', 'black'] * 1000
-        self.font = ImageFont.truetype("./static/fonts/open_san.ttf", 30)
+        # turn above line into a rgb tuple
+        self.colors = [
+            (193, 18,  31),
+            (0,   175, 185),
+            (0,   0,   255),
+            (102, 155, 188),
+            (0,   255, 0),
+            (255, 255, 0),
+            (9,   208, 2),
+        ] * 1000
 
     def process(self, msg):
         """
@@ -34,22 +42,22 @@ class Pipeline:
         """
         detected_data = self.person_detector.detect_complex(msg.value)
 
-        final_img = Image.open(BytesIO(msg.value))
-        draw = ImageDraw.Draw(final_img)
+        # Convert the image data to an array
+        image_data = np.frombuffer(msg.value, dtype=np.uint8)
+        final_img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
         for detection in detected_data['result'].xyxy[0]:
             xmin, ymin, xmax, ymax = map(int, detection[:4])
 
-            cropped_img = final_img.crop((xmin, ymin, xmax, ymax))
-            cropped_img = np.array(cropped_img)
+            cropped_img = final_img[ymin:ymax, xmin:xmax, :]
 
             # A small solution for #3 (initial partial visibility)
             # This is a temporary solution, but it works beautifully.
             # Solution: Check if the person is fully visible
             offset = 2  # because the bbox is not (always) accurate
             lower_bound = ((xmin - offset) <= 0 or (ymin - offset) <= 0)
-            upper_bound = (xmax + offset >= final_img.width
-                           or (ymax + offset) >= final_img.height)
+            upper_bound = (xmax + offset >= final_img.shape[1]
+                           or (ymax + offset) >= final_img.shape[0])
             if lower_bound or upper_bound:
                 current_id = -1
             else:
@@ -61,16 +69,21 @@ class Pipeline:
 
             # Draw bounding box and label
             label = f" ID: {current_id}"
-            draw.rectangle(
-                [xmin, ymin, xmax, ymax],
-                outline=self.colors[current_id],
-                width=4,
+            cv2.rectangle(
+                img=final_img,
+                pt1=(xmin, ymin),
+                pt2=(xmax, ymax),
+                color=self.colors[current_id],
+                thickness=2,
             )
-            draw.text(
-                xy=(xmin, ymin),
+            cv2.putText(
+                img=final_img,
                 text=label,
-                fill=self.colors[current_id],
-                font=self.font,
+                org=(xmin, ymin),
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=1,
+                color=self.colors[current_id],
+                thickness=2,
             )
 
         return final_img
