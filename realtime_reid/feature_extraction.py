@@ -91,21 +91,22 @@ class ResNetReID():
 
         img = self.data_transforms(img)
         img = img.unsqueeze(0)
+        img = img.to(device)
         n, c, h, w = img.size()
 
-        ff = torch.FloatTensor(n, LINEAR_NUM).zero_()
-        ff = ff.to(device)
+        feature_map = torch.FloatTensor(n, LINEAR_NUM).zero_()
+        feature_map = feature_map.to(device)
 
         for i in range(2):
-            if (i == 1):
+            if i == 1:
                 img = self.fliplr(img)
-            img = img.to(device)
 
             with torch.no_grad():
                 outputs = self.model(img)
-            ff += outputs
+            feature_map += outputs
 
-        # norm feature
-        fnorm = torch.norm(ff, p=2, dim=1, keepdim=True)
-        ff = ff.div(fnorm.expand_as(ff))
-        return ff
+        # Normalize feature
+        fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
+        feature_map = feature_map.div(fnorm.expand_as(feature_map))
+
+        return feature_map
