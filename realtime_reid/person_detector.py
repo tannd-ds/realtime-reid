@@ -6,12 +6,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class PersonDetector():
-    def __init__(self):
+    def __init__(self, model_path: str = 'checkpoints/yolov5s.pt'):
         # Load YOLOv5 Model
         self.yolo = torch.hub.load(
             'ultralytics/yolov5',
             'custom',
-            path='checkpoints/yolov5s.pt',
+            path=model_path,
         )
 
         # Only detect "person" (Class index 0 in COCO Dataset)
