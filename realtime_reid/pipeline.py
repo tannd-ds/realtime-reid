@@ -26,7 +26,7 @@ class Pipeline:
             (9,   208, 2),
         ] * 1000
 
-    def process(self, msg):
+    def process(self, msg: bytes, return_bytes: str = False):
         """
         Process the input message by detecting and identifying persons
         in the image.
@@ -40,10 +40,14 @@ class Pipeline:
             Image: The processed image with bounding boxes and labels for
         detected persons.
         """
-        detected_data = self.person_detector.detect_complex(msg.value)
+        # check if msg has .value
+        if hasattr(msg, 'value'):
+            msg = msg.value
+
+        detected_data = self.person_detector.detect_complex(msg)
 
         # Convert the image data to an array
-        image_data = np.frombuffer(msg.value, dtype=np.uint8)
+        image_data = np.frombuffer(msg, dtype=np.uint8)
         final_img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
         for detection in detected_data['result'].xyxy[0]:
@@ -85,5 +89,12 @@ class Pipeline:
                 color=self.colors[current_id],
                 thickness=2,
             )
+
+        if return_bytes:
+            return cv2.imencode(
+                '.jpg',
+                final_img,
+                [cv2.IMWRITE_JPEG_QUALITY, 100]
+            )[1].tobytes()
 
         return final_img
