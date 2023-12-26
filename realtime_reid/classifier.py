@@ -94,7 +94,7 @@ class PersonReID():
         else:
             results = self.calculate_score(target)
 
-            # results = torch.tensor(results)
+            # Get the best match person
             top_score, top_ppl = torch.max(results, dim=0)
             top_score, top_ppl = top_score.item(), top_ppl.item()
             if top_score > self.CONFIDENT_THRESHOLD['normal']:
