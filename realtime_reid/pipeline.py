@@ -13,9 +13,6 @@ class Pipeline:
         self.person_detector = PersonDetector()
         self.fe_model = ResNetReID()
         self.classifier = PersonReID()
-        # Style for bounding boxes and labels
-        self.colors = ['red', 'green', 'blue', 'cyan', 'black'] * 1000
-        # turn above line into a rgb tuple
         self.colors = [
             (193, 18,  31),
             (0,   175, 185),
@@ -26,7 +23,7 @@ class Pipeline:
             (9,   208, 2),
         ] * 1000
 
-    def process(self, msg):
+    def process(self, msg: bytes, return_bytes: str = False):
         """
         Process the input message by detecting and identifying persons
         in the image.
@@ -40,14 +37,21 @@ class Pipeline:
             Image: The processed image with bounding boxes and labels for
         detected persons.
         """
-        detected_data = self.person_detector.detect_complex(msg.value)
+        if not isinstance(msg, bytes):
+            raise TypeError("msg must be of type bytes.")
+
+        detected_data = self.person_detector.detect_complex(msg)
+        if len(detected_data) == 1:
+            detected_data = detected_data[0]
 
         # Convert the image data to an array
-        image_data = np.frombuffer(msg.value, dtype=np.uint8)
+        image_data = np.frombuffer(msg, dtype=np.uint8)
         final_img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
-        for detection in detected_data['result'].xyxy[0]:
-            xmin, ymin, xmax, ymax = map(int, detection[:4])
+        for detected_box in detected_data.boxes:
+            # detected_box.xyxy is a (1, 4) tensor
+            xyxy = detected_box.xyxy.squeeze().tolist()
+            xmin, ymin, xmax, ymax = map(int, xyxy)
 
             cropped_img = final_img[ymin:ymax, xmin:xmax, :]
 
@@ -85,5 +89,12 @@ class Pipeline:
                 color=self.colors[current_id],
                 thickness=2,
             )
+
+        if return_bytes:
+            return cv2.imencode(
+                '.jpg',
+                final_img,
+                [cv2.IMWRITE_JPEG_QUALITY, 100]
+            )[1].tobytes()
 
         return final_img
