@@ -61,6 +61,9 @@ class PersonReID():
         if score == "cosine":
             # Calculate score using Cosine Similarity
             results = self.cos_scorer(target, self.embeddings)
+        elif score == "euclidean":
+            # Calculate score using Euclidean Distance
+            results = torch.cdist(target, self.embeddings, p=2)
         return results
 
     def identify(

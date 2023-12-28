@@ -1,21 +1,15 @@
 import cv2
 import numpy as np
 import torch
+from ultralytics import YOLO
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class PersonDetector():
-    def __init__(self, model_path: str = 'checkpoints/yolov5s.pt'):
-        # Load YOLOv5 Model
-        self.yolo = torch.hub.load(
-            'ultralytics/yolov5',
-            'custom',
-            path=model_path,
-        )
-
-        # Only detect "person" (Class index 0 in COCO Dataset)
-        self.yolo.classes = [0]
+    def __init__(self, model_path: str = 'yolov5n.pt'):
+        # Load YOLOv8 Model
+        self.yolo = YOLO(model_path)
 
     def detect_complex(
         self,
@@ -39,8 +33,6 @@ class PersonDetector():
             cv2.IMREAD_COLOR
         )
 
-        # Perform YOLOv5 object detection
-        results = self.yolo([image])
-        return {
-            'result': results,
-        }
+        # Perform object detection
+        results = self.yolo(image, classes=[0])
+        return results

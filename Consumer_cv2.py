@@ -24,7 +24,7 @@ processed_images = Queue()
 def process_messages(consumer, consumer_name):
     for msg in consumer:
         # Process the message
-        final_img = reid_pipeline.process(msg)
+        final_img = reid_pipeline.process(msg.value)
 
         # Add the processed image to the Queue
         processed_images.put((consumer_name, final_img))
