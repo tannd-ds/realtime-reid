@@ -8,10 +8,14 @@ class VideoProducer():
     def __init__(
             self,
             topic: str,
-            interval: float | None = None,
+            interval: float,
             bootstrap_servers: str = 'localhost:9092'):
 
-        self.INTERVAL = 0.2 if interval is None else interval
+        self.INTERVAL = interval
+        # Incase user input FPS instead of interval
+        if self.INTERVAL > 1:
+            self.INTERVAL = 1 / self.INTERVAL
+
         self.producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
         self.TOPIC = topic
 
@@ -30,6 +34,10 @@ class VideoProducer():
         # Open video file
         video = cv2.VideoCapture(source_path)
 
+        # Set default interval for video to video FPS
+        if self.INTERVAL == -1:
+            self.INTERVAL = 1 / video.get(cv2.CAP_PROP_FPS)
+
         while (video.isOpened()):
             success, frame = video.read()
 
@@ -45,6 +53,10 @@ class VideoProducer():
         # Open folder
         image_files = [f for f in os.listdir(source_path)
                        if f.endswith(('.jpg', '.png'))]
+
+        # Set default interval for image folder to 12 FPS
+        if self.INTERVAL == -1:
+            self.INTERVAL = 1 / 12
 
         for img in image_files:
             image_path = os.path.join(source_path, img)

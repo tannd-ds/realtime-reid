@@ -16,15 +16,17 @@ def parse_args():
 
     parser.add_argument("-i", "--interval",
                         type=float,
-                        required=False,
-                        help="The delay between each image.")
+                        default=-1,
+                        help="The delay between each image (in second). "
+                        "If not specified, default to the video FPS "
+                        "(12 FPS for image folder)")
     args = parser.parse_args()
     return args
 
 
 def main():
     """
-    Producer will publish to Kafka Server a video file given as a system arg. 
+    Producer will publish to Kafka Server a video file given as a system arg.
     Otherwise it will default by streaming webcam feed.
     """
     args = vars(parse_args())
