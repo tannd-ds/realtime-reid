@@ -1,8 +1,8 @@
+import numpy as np
 import findspark
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
 from pyspark.sql.types import BinaryType
-import numpy as np
 from realtime_reid.pipeline import Pipeline
 
 reid_pipeline = Pipeline()
@@ -24,13 +24,14 @@ spark = SparkSession.builder \
     .master('local') \
     .appName("person-reid") \
     .config("spark.jars.packages", ",".join(packages)) \
-    .config("spark.sql.shuffle.partitions", "200") \
     .getOrCreate()
+
+spark.conf.set("spark.sql.shuffle.partitions", "20")
 
 # Define the Kafka parameters
 kafka_params = {
     "kafka.bootstrap.servers": "localhost:9092",
-    "subscribe": "topic_camera_01"
+    "subscribe": "topic_camera_00, topic_camera_01"
 }
 
 # Create a streaming DataFrame with Kafka source
@@ -55,23 +56,40 @@ def process_frame(value):
 
 # Apply the UDF to process the frames
 processed_df = df \
-    .selectExpr("CAST(key AS STRING)", "value") \
+    .selectExpr("CAST(key AS STRING)", "CAST(topic as STRING)", "value") \
     .withColumn("value", process_frame("value"))
 
 # Define the Kafka parameters for writing
-kafka_write_params = {
-    "kafka.bootstrap.servers": "localhost:9092",
-    "topic": "processed_topic"
-}
+kafka_write_params = [
+    {
+        "kafka.bootstrap.servers": "localhost:9092",
+        "topic": "processed_topic_1"
+    },
+    {
+        "kafka.bootstrap.servers": "localhost:9092",
+        "topic": "processed_topic_2"
+    }
+]
 
 # Write the processed frames back to Kafka
-query = processed_df \
+query_topic1 = processed_df \
+    .filter("topic = 'topic_camera_00'") \
     .writeStream \
     .format("kafka") \
-    .options(**kafka_write_params) \
-    .option("checkpointLocation", "tmp/checkpoint") \
+    .options(**kafka_write_params[0]) \
+    .option("checkpointLocation", "tmp/" + kafka_write_params[0]["topic"]) \
+    .outputMode("append") \
+    .start()
+
+query_topic2 = processed_df \
+    .filter("topic = 'topic_camera_01'") \
+    .writeStream \
+    .format("kafka") \
+    .options(**kafka_write_params[1]) \
+    .option("checkpointLocation", "tmp/" + kafka_write_params[1]["topic"]) \
     .outputMode("append") \
     .start()
 
 # Start the streaming context
-query.awaitTermination()
+query_topic1.awaitTermination()
+query_topic2.awaitTermination()
