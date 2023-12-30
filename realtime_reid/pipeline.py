@@ -11,7 +11,7 @@ class Pipeline:
         """Initialize the pipeline by creating the necessary objects."""
         # Backbone models
         self.person_detector = PersonDetector()
-        self.fe_model = ResNetReID()
+        self.extractor = ResNetReID()
         self.classifier = PersonReID()
         self.colors = [
             (193, 18,  31),
@@ -65,7 +65,7 @@ class Pipeline:
             if lower_bound or upper_bound:
                 current_id = -1
             else:
-                current_person = self.fe_model.extract_feature(cropped_img)
+                current_person = self.extractor.extract_feature(cropped_img)
                 current_id = self.classifier.identify(
                     current_person,
                     update_embeddings=True
