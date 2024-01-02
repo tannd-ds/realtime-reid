@@ -28,11 +28,12 @@ def parse_args():
                         type=str,
                         default="NULL",
                         help="The name of the second kafka topic (optional)")
-    parser.add_argument("-reid", "--reid",
-                        action=argparse.BooleanOptionalAction,
-                        default=DEFAULT_APPLY_REID,
-                        help="Set this flag if you want to apply reid on the"
-                        "images, leave it unset otherwise.")
+    parser.add_argument("-r", "--reid",
+                        type=str,
+                        choices=["y", "n", "spark"],
+                        default="n",
+                        help="Set this 'y' if you want to apply reid on the"
+                        "images, 'spark' if you want to run the spark and")
     return parser.parse_args()
 
 
@@ -40,10 +41,11 @@ args = vars(parse_args())
 BOOTSTRAP_SERVERS = args['bootstrap_servers']
 TOPIC_1 = args['topic']
 TOPIC_2 = args['topic_2']
-APPLY_REID = args['reid']
+INTEGRATE_SPARK = (args['reid'] == "spark")
+APPLY_REID = (args['reid'] == "y" or INTEGRATE_SPARK)
 
 reid_pipeline = None
-if APPLY_REID:
+if APPLY_REID and not INTEGRATE_SPARK:
     reid_pipeline = Pipeline()
 
 
@@ -57,7 +59,7 @@ def process_messages(consumer: KafkaConsumer,
         # Process the message
         final_img = np.frombuffer(msg.value, dtype=np.uint8)
         final_img = cv2.imdecode(final_img, cv2.IMREAD_COLOR)
-        if APPLY_REID:
+        if APPLY_REID and not INTEGRATE_SPARK:
             final_img = reid_pipeline.process(msg.value)
 
         # Add the processed image to the Queue
@@ -95,6 +97,12 @@ def display_images():
 
 
 def main():
+    # Spark streaming thread
+    if INTEGRATE_SPARK:
+        from streaming.spark_services.spark_streaming import start_spark
+        thread = threading.Thread(target=start_spark)
+        thread.start()
+
     # Create Kafka consumers for both topics
     consumer_00 = KafkaConsumer(
         TOPIC_1,
