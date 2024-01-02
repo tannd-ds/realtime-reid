@@ -6,39 +6,44 @@ import threading
 from kafka import KafkaConsumer
 from realtime_reid.pipeline import Pipeline
 
+DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"
+DEFAULT_TOPIC_2 = "NULL"  # No second topic by default
+DEFAULT_APPLY_REID = False  # Do not apply reid by default
+
 
 def parse_args():
-    """
-    Parse User's input arguments.
-    """
+    """Parse User's input arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("-bs", "--bootstrap_servers",
+    parser.add_argument("-bs", "--bootstrap-servers",
                         type=str,
                         default="localhost:9092",
-                        help="The Kafka Bootstrap Servers")
-    parser.add_argument("-t1", "--topic-1",
+                        help="The address of the Kafka bootstrap"
+                        "servers in the format 'host:port'")
+
+    parser.add_argument("-t", "--topic", "--topic-1",
                         type=str,
                         required=True,
-                        help="The Topic Name")
+                        help="The name of the first kafka topic")
     parser.add_argument("-t2", "--topic-2",
                         type=str,
                         default="NULL",
-                        help="The Topic Name")
-    parser.add_argument("-ir", "--is-raw",
-                        type=lambda x: (str(x).lower() == 'true'),
-                        default=True,
-                        help="Whether the data is raw (not processed) or not")
+                        help="The name of the second kafka topic (optional)")
+    parser.add_argument("-reid", "--reid",
+                        action=argparse.BooleanOptionalAction,
+                        default=DEFAULT_APPLY_REID,
+                        help="Set this flag if you want to apply reid on the"
+                        "images, leave it unset otherwise.")
     return parser.parse_args()
 
 
 args = vars(parse_args())
 BOOTSTRAP_SERVERS = args['bootstrap_servers']
-TOPIC_1 = args['topic_1']
+TOPIC_1 = args['topic']
 TOPIC_2 = args['topic_2']
-IS_RAW = args['is_raw']
+APPLY_REID = args['reid']
 
 reid_pipeline = None
-if IS_RAW:
+if APPLY_REID:
     reid_pipeline = Pipeline()
 
 
@@ -52,7 +57,7 @@ def process_messages(consumer: KafkaConsumer,
         # Process the message
         final_img = np.frombuffer(msg.value, dtype=np.uint8)
         final_img = cv2.imdecode(final_img, cv2.IMREAD_COLOR)
-        if IS_RAW:
+        if APPLY_REID:
             final_img = reid_pipeline.process(msg.value)
 
         # Add the processed image to the Queue
