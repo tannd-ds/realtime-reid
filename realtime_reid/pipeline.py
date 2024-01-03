@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from realtime_reid.person_detector import PersonDetector
-from realtime_reid.feature_extraction import ResNetReID
+from realtime_reid.feature_extraction import PersonDescriptor
 from realtime_reid.classifier import PersonReID
 
 
@@ -10,8 +10,8 @@ class Pipeline:
     def __init__(self):
         """Initialize the pipeline by creating the necessary objects."""
         # Backbone models
-        self.person_detector = PersonDetector()
-        self.extractor = ResNetReID()
+        self.detector = PersonDetector()
+        self.descriptor = PersonDescriptor()
         self.classifier = PersonReID()
         self.colors = [
             (193, 18,  31),
@@ -40,7 +40,7 @@ class Pipeline:
         if not isinstance(msg, bytes):
             raise TypeError("msg must be of type bytes.")
 
-        detected_data = self.person_detector.detect_complex(msg)
+        detected_data = self.detector.detect_complex(msg)
         if len(detected_data) == 1:
             detected_data = detected_data[0]
 
@@ -65,7 +65,7 @@ class Pipeline:
             if lower_bound or upper_bound:
                 current_id = -1
             else:
-                current_person = self.extractor.extract_feature(cropped_img)
+                current_person = self.descriptor.extract_feature(cropped_img)
                 current_id = self.classifier.identify(
                     current_person,
                     update_embeddings=True

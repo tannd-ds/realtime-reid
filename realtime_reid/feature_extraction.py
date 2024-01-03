@@ -14,7 +14,7 @@ STRIDE = 2
 LINEAR_NUM = 512
 
 
-class ResNetReID():
+class PersonDescriptor():
     def __init__(self):
 
         # Init Data Transform Pipeline
