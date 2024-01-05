@@ -1,5 +1,6 @@
 runs/
 videos/
+tmp/
 
 *.pt
 *.pth
