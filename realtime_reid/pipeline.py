@@ -11,11 +11,15 @@ class Pipeline:
     def __init__(self):
         """Initialize the pipeline by creating the necessary objects."""
         # Backbone models
-        self.detector = PersonDetector()
-        self.descriptor = PersonDescriptor()
+        self.detector = PersonDetector('yolov8n.pt')
+        self.descriptor = PersonDescriptor(use_dense=True)
         self.classifier = PersonReID()
 
-    def process(self, msg: bytes, return_bytes: str = False):
+    def process(
+        self,
+        msg: bytes | np.ndarray,
+        return_bytes: str = False
+    ):
         """
         Process the input message by detecting and identifying persons
         in the image.

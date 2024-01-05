@@ -3,37 +3,61 @@ import numpy as np
 import torch
 from torch import nn
 from torchvision import transforms
-from .resnet_base import ft_net
+from .resnet_base import ft_net, ft_net_dense
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 h, w = 256, 128
-# Model Parameters
+# ResNet50 Parameters
+# Train: --train_all
 MODEL_PATH = 'checkpoints/net_last.pth'
 N_CLASSES = 751
 STRIDE = 2
 LINEAR_NUM = 512
 
+# DenseNet121 Parameters
+# Train: --warm_epoch 5 --stride 1 --erasing_p 0.5 \
+#        --batchsize 8 --lr 0.02 --name dense_warm5_s1_b8_lr2_p0.5_circle \
+#        --circle --use_dense
+DENSE_MODEL_PATH = 'checkpoints/dense_net_last.pth'
+DENSE_DROPRATE = 0.5
+DENSE_STRIDE = 2  # Use stride 2 instead of 1 results in less id switch
+DENSE_CIRCLE = True
+
 
 class PersonDescriptor():
-    def __init__(self):
+    def __init__(self, use_dense=False):
 
         # Init Data Transform Pipeline
         self.data_transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize((h, w), interpolation=3),
+            transforms.Resize((h, w), interpolation=3, antialias=True),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
         # Init model structure
-        self.model_structure = ft_net(
-            class_num=N_CLASSES,
-            stride=STRIDE,
-            ibn=False,
-            linear_num=LINEAR_NUM,
-        )
+        if use_dense:
+            self.model_structure = ft_net_dense(
+                class_num=N_CLASSES,
+                droprate=DENSE_DROPRATE,
+                stride=DENSE_STRIDE,
+                circle=DENSE_CIRCLE,
+                linear_num=LINEAR_NUM,
+            )
+            self.model = self.load_network(
+                self.model_structure,
+                DENSE_MODEL_PATH
+            )
+        else:
+            self.model_structure = ft_net(
+                class_num=N_CLASSES,
+                stride=STRIDE,
+                linear_num=LINEAR_NUM,
+            )
+            self.model = self.load_network(
+                self.model_structure,
+                MODEL_PATH
+            )
 
-        # Now load model from checkpoint
-        self.model = self.load_network(self.model_structure)
         # Remove the final fc layer and classifier layer
         self.model.classifier.classifier = nn.Sequential()
 
@@ -51,6 +75,8 @@ class PersonDescriptor():
             print(
                 f"Failed to load model from {pt_model_path},",
                 "did you train the model?")
+        finally:
+            print("Model loaded successfully!")
         return model_structure
 
     @staticmethod
@@ -103,6 +129,9 @@ class PersonDescriptor():
 
             with torch.no_grad():
                 outputs = self.model(img)
+
+            if isinstance(outputs, list):
+                outputs = outputs[0]
             feature_map += outputs
 
         # Normalize feature
