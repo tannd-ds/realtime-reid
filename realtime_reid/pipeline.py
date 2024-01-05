@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 
+from realtime_reid.visualization_utils import color
 from realtime_reid.person_detector import PersonDetector
 from realtime_reid.feature_extraction import ResNetReID
 from realtime_reid.classifier import PersonReID
@@ -13,15 +14,6 @@ class Pipeline:
         self.person_detector = PersonDetector()
         self.extractor = ResNetReID()
         self.classifier = PersonReID()
-        self.colors = [
-            (193, 18,  31),
-            (0,   175, 185),
-            (0,   0,   255),
-            (102, 155, 188),
-            (0,   255, 0),
-            (255, 255, 0),
-            (9,   208, 2),
-        ] * 1000
 
     def process(self, msg: bytes, return_bytes: str = False):
         """
@@ -72,12 +64,12 @@ class Pipeline:
                 )
 
             # Draw bounding box and label
-            label = f" ID: {current_id}"
+            label = f"{current_id}"
             cv2.rectangle(
                 img=final_img,
                 pt1=(xmin, ymin),
                 pt2=(xmax, ymax),
-                color=self.colors[current_id],
+                color=color.create_unique_color(current_id),
                 thickness=2,
             )
             cv2.putText(
@@ -86,7 +78,7 @@ class Pipeline:
                 org=(xmin, ymin),
                 fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                 fontScale=1,
-                color=self.colors[current_id],
+                color=color.create_unique_color(current_id),
                 thickness=2,
             )
 
