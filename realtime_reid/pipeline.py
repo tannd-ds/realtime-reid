@@ -1,14 +1,14 @@
 import cv2
 import numpy as np
 
-from realtime_reid.visualization_utils import color
-from realtime_reid.person_detector import PersonDetector
-from realtime_reid.feature_extraction import PersonDescriptor
-from realtime_reid.classifier import PersonReID
+from .visualization_utils import color
+from .person_detector import PersonDetector
+from .feature_extraction import PersonDescriptor
+from .classifier import PersonReID
 
 
 class Pipeline:
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the pipeline by creating the necessary objects."""
         # Backbone models
         self.detector = PersonDetector('yolov8n.pt')
@@ -19,7 +19,7 @@ class Pipeline:
         self,
         msg: bytes | np.ndarray,
         return_bytes: str = False
-    ):
+    ) -> np.ndarray | bytes:
         """
         Process the input message by detecting and identifying persons
         in the image.
@@ -63,8 +63,8 @@ class Pipeline:
             else:
                 current_person = self.descriptor.extract_feature(cropped_img)
                 current_id = self.classifier.identify(
-                    current_person,
-                    update_embeddings=True
+                    target=current_person,
+                    do_update=True
                 )
 
             # Draw bounding box and label

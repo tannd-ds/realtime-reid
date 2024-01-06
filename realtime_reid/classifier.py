@@ -2,14 +2,14 @@ import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class PersonReID():
+class PersonReID:
     def __init__(
         self,
         from_file: str = None,
         from_tensor: torch.Tensor = None
-    ):
+    ) -> None:
         """
-        Init the embeddings from reading a torch.tensor saved in a `.pt` file
+        Init the embeddings from reading a `torch.tensor` saved in a `.pt` file
         or init a new torch.tensor. There are 3 options to init an embeddings,
         which represented by the 2 parameters. These paras SHOULDN'T be set at
         the same time.
@@ -69,8 +69,8 @@ class PersonReID():
     def identify(
         self,
         target: torch.Tensor,
-        update_embeddings: bool = False
-    ):
+        do_update: bool = False
+    ) -> int:
         """
         Get the ID of the input target.
 
@@ -79,7 +79,7 @@ class PersonReID():
         target: torch.Tensor, required
             The (feature/embeddings) tensor of size [1, 512].
 
-        update_embeddings: bool, default False
+        do_update: bool, default False
             Whether to update the embeddings (and ids).
 
         Returns
@@ -89,7 +89,6 @@ class PersonReID():
         # The default id is current_max_id,
         # The only other option (below) is the id of the best match person.
         target_id = self.current_max_id
-        new_embeddings = self.embeddings
 
         if self.embeddings.shape[0] == 0:
             # When no one is detected
@@ -105,11 +104,20 @@ class PersonReID():
 
             new_embeddings = torch.cat((self.embeddings, target), dim=0)
 
-        if update_embeddings:
-            self.embeddings = new_embeddings
-            if new_embeddings.shape[0] > len(self.ids):
-                self.ids.append(target_id)
-            if self.current_max_id == target_id:
-                self.current_max_id += 1
+        if do_update:
+            self._update_embeddings(new_embeddings, target_id)
 
         return target_id
+
+    def _update_embeddings(
+        self,
+        new_embeddings: torch.Tensor,
+        target_id: int
+    ) -> None:
+        self.embeddings = new_embeddings
+        if new_embeddings.shape[0] > len(self.ids):
+            self.ids.append(target_id)
+        if self.current_max_id == target_id:
+            self.current_max_id += 1
+        assert len(self.ids) == self.embeddings.shape[0], \
+            "The number of ids must be equal to the number of embeddings."

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from torchvision import transforms
-from .resnet_base import ft_net, ft_net_dense
+from .resnet_base import FtNet, FtNetDense
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 h, w = 256, 128
@@ -36,7 +36,7 @@ class PersonDescriptor():
 
         # Init model structure
         if use_dense:
-            self.model_structure = ft_net_dense(
+            self.model_structure = FtNetDense(
                 class_num=N_CLASSES,
                 droprate=DENSE_DROPRATE,
                 stride=DENSE_STRIDE,
@@ -48,7 +48,7 @@ class PersonDescriptor():
                 DENSE_MODEL_PATH
             )
         else:
-            self.model_structure = ft_net(
+            self.model_structure = FtNet(
                 class_num=N_CLASSES,
                 stride=STRIDE,
                 linear_num=LINEAR_NUM,

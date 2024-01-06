@@ -74,7 +74,7 @@ class ClassBlock(nn.Module):
             return x
 
 
-class ft_net(nn.Module):
+class FtNet(nn.Module):
     """The ResNet50-based Model"""
 
     def __init__(
@@ -82,10 +82,10 @@ class ft_net(nn.Module):
         class_num=751, droprate=0.5, stride=2,
         circle=False, ibn=False, linear_num=512
     ):
-        super(ft_net, self).__init__()
+        super(FtNet, self).__init__()
 
         resnet_weights = models.ResNet50_Weights.DEFAULT
-        model_ft = models.resnet50(resnet_weights)
+        model_ft = models.resnet50(weights=resnet_weights)
 
         if ibn is True:
             model_ft = torch.hub.load(
@@ -119,7 +119,7 @@ class ft_net(nn.Module):
         return x
 
 
-class ft_net_dense(nn.Module):
+class FtNetDense(nn.Module):
     """Define the DenseNet121-based Model"""
 
     def __init__(
@@ -129,7 +129,7 @@ class ft_net_dense(nn.Module):
     ):
         super().__init__()
         dense_weight = models.DenseNet121_Weights.DEFAULT
-        model_ft = models.densenet121(dense_weight)
+        model_ft = models.densenet121(weights=dense_weight)
         model_ft.features.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         model_ft.fc = nn.Sequential()
 
