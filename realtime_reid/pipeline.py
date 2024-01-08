@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 
@@ -18,6 +19,7 @@ class Pipeline:
     def process(
         self,
         msg: bytes | np.ndarray,
+        save_dir: str = None,
         return_bytes: str = False
     ) -> np.ndarray | bytes:
         """
@@ -65,6 +67,14 @@ class Pipeline:
                 current_id = self.classifier.identify(
                     target=current_person,
                     do_update=True
+                )
+
+            # Save the cropped image before drawing the bounding box
+            if save_dir is not None:
+                save_filename = f"{len(os.listdir(save_dir))}_{current_id}"
+                cv2.imwrite(
+                    f"{save_dir}/{save_filename}.jpg",
+                    cropped_img
                 )
 
             # Draw bounding box and label

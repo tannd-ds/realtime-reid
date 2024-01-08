@@ -19,7 +19,6 @@ def parse_args():
                         default="localhost:9092",
                         help="The address of the Kafka bootstrap"
                         "servers in the format 'host:port'")
-
     parser.add_argument("-t", "--topic", "--topic-1",
                         type=str,
                         required=True,
@@ -60,7 +59,7 @@ def process_messages(consumer: KafkaConsumer,
         final_img = np.frombuffer(msg.value, dtype=np.uint8)
         final_img = cv2.imdecode(final_img, cv2.IMREAD_COLOR)
         if APPLY_REID and not INTEGRATE_SPARK:
-            final_img = reid_pipeline.process(msg.value)
+            final_img = reid_pipeline.process(msg.value, save_dir='./tmp')
 
         # Add the processed image to the Queue
         processed_images.put((consumer_name, final_img))
