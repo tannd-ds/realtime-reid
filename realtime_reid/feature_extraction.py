@@ -3,7 +3,8 @@ import numpy as np
 import torch
 from torch import nn
 from torchvision import transforms
-from .resnet_base import FtNet, FtNetDense
+
+from .resnet_base import FtNet, FtNetDense, PCB, PCB_test
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 h, w = 256, 128
@@ -23,48 +24,75 @@ DENSE_DROPRATE = 0.5
 DENSE_STRIDE = 2  # Use stride 2 instead of 1 results in less id switch
 DENSE_CIRCLE = True
 
+# PCB Parameters
+# Train:
+PCB_MODEL_PATH = 'checkpoints/pcb_net_30.pth'
 
-class PersonDescriptor():
-    def __init__(self, use_dense=False):
+
+class PersonDescriptor:
+    def __init__(self,
+                 use_dense=False,
+                 use_pcb=False):
+
+        self.use_dense = use_dense
+        self.use_pcb = use_pcb
+
+        if self.use_pcb:
+            self.w, self.h = 384, 192
+        else:
+            self.w, self.h = 256, 128
+
 
         # Init Data Transform Pipeline
-        self.data_transforms = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((h, w), interpolation=3, antialias=True),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        self.data_transforms = self.init_data_transforms()
 
-        # Init model structure
-        if use_dense:
-            self.model_structure = FtNetDense(
+        # Init Model
+        self.model_structure, self.model = self.init_model()
+
+        # Remove the final fc layer and classifier layer
+        if self.use_pcb:
+            self.model = PCB_test(self.model)
+        else:
+            self.model.classifier.classifier = nn.Sequential()
+
+        self.model = self.model.eval()
+        self.model = self.model.to(device)
+
+    def init_model(self):
+        """Init model structure"""
+        if self.use_pcb:
+            model_structure = PCB(class_num=N_CLASSES)
+            model = self.load_network(
+                model_structure,
+                PCB_MODEL_PATH
+            )
+        elif self.use_dense:
+            model_structure = FtNetDense(
                 class_num=N_CLASSES,
                 droprate=DENSE_DROPRATE,
                 stride=DENSE_STRIDE,
                 circle=DENSE_CIRCLE,
                 linear_num=LINEAR_NUM,
             )
-            self.model = self.load_network(
-                self.model_structure,
+            model = self.load_network(
+                model_structure,
                 DENSE_MODEL_PATH
             )
         else:
-            self.model_structure = FtNet(
+            model_structure = FtNet(
                 class_num=N_CLASSES,
                 stride=STRIDE,
                 linear_num=LINEAR_NUM,
             )
-            self.model = self.load_network(
-                self.model_structure,
+            model = self.load_network(
+                model_structure,
                 MODEL_PATH
             )
 
-        # Remove the final fc layer and classifier layer
-        self.model.classifier.classifier = nn.Sequential()
+        return model_structure, model
 
-        self.model = self.model.eval()
-        self.model = self.model.to(device)
-
-    def load_network(self, model_structure, pt_model_path: str = MODEL_PATH):
+    @staticmethod
+    def load_network(model_structure, pt_model_path: str = MODEL_PATH):
         """
         Load model checkpoint from the pth file, then return the loaded model.
         """
@@ -78,6 +106,15 @@ class PersonDescriptor():
         finally:
             print("Model loaded successfully!")
         return model_structure
+
+    def init_data_transforms(self):
+        """Initialize the data transform pipeline."""
+        data_transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((self.h, self.w), interpolation=3, antialias=True),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        return data_transforms
 
     @staticmethod
     def fliplr(img: torch.Tensor):
@@ -121,6 +158,9 @@ class PersonDescriptor():
         n, c, h, w = img.size()
 
         feature_map = torch.FloatTensor(n, LINEAR_NUM).zero_()
+        if self.use_pcb:
+            # We have 6 parts -> 6 feature maps
+            feature_map = torch.FloatTensor(n, 2048, 6).zero_()
         feature_map = feature_map.to(device)
 
         for i in range(2):
@@ -135,7 +175,12 @@ class PersonDescriptor():
             feature_map += outputs
 
         # Normalize feature
-        fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
-        feature_map = feature_map.div(fnorm.expand_as(feature_map))
+        if self.use_pcb:
+            fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True) * np.sqrt(6)
+            feature_map = feature_map.div(fnorm.expand_as(feature_map))
+            feature_map = feature_map.view(feature_map.size(0), -1)
+        else:
+            fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
+            feature_map = feature_map.div(fnorm.expand_as(feature_map))
 
         return feature_map

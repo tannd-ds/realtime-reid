@@ -13,7 +13,7 @@ class Pipeline:
         """Initialize the pipeline by creating the necessary objects."""
         # Backbone models
         self.detector = PersonDetector('yolov8n.pt')
-        self.descriptor = PersonDescriptor(use_dense=True)
+        self.descriptor = PersonDescriptor(use_pcb=True)
         self.classifier = PersonReID()
 
     def process(
