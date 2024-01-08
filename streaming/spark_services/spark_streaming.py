@@ -66,12 +66,8 @@ def start_spark():
         write_params = [
             {
                 "kafka.bootstrap.servers": "localhost:9092",
-                "topic": "processed_topic_1"
-            },
-            {
-                "kafka.bootstrap.servers": "localhost:9092",
-                "topic": "processed_topic_2"
-            }
+                "topic": kafka_params["subscribe"].split(", ")[i] + "_processed"
+            } for i in range(2)
         ]
 
         # Write the processed frames back to Kafka

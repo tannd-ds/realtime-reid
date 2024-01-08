@@ -33,6 +33,13 @@ def parse_args():
                         default="n",
                         help="Set this 'y' if you want to apply reid on the"
                         "images, 'spark' if you want to run the spark and")
+
+    # misc
+    parser.add_argument("-s", "--save-dir",
+                        type=str,
+                        default=None,
+                        help="The directory to save the detected images."
+                        "Leave it empty if you don't want to save the images")
     return parser.parse_args()
 
 
@@ -59,7 +66,7 @@ def process_messages(consumer: KafkaConsumer,
         final_img = np.frombuffer(msg.value, dtype=np.uint8)
         final_img = cv2.imdecode(final_img, cv2.IMREAD_COLOR)
         if APPLY_REID and not INTEGRATE_SPARK:
-            final_img = reid_pipeline.process(msg.value, save_dir='./tmp')
+            final_img = reid_pipeline.process(msg.value, save_dir=args['save_dir'])
 
         # Add the processed image to the Queue
         processed_images.put((consumer_name, final_img))

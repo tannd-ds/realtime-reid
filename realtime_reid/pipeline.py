@@ -1,11 +1,12 @@
 import os
+
 import cv2
 import numpy as np
 
-from .visualization_utils import color
-from .person_detector import PersonDetector
-from .feature_extraction import PersonDescriptor
 from .classifier import PersonReID
+from .feature_extraction import PersonDescriptor
+from .person_detector import PersonDetector
+from .visualization_utils import color
 
 
 class Pipeline:
@@ -20,7 +21,7 @@ class Pipeline:
         self,
         msg: bytes | np.ndarray,
         save_dir: str = None,
-        return_bytes: str = False
+        return_bytes: bool = False
     ) -> np.ndarray | bytes:
         """
         Process the input message by detecting and identifying persons
@@ -28,7 +29,13 @@ class Pipeline:
 
         Parameters
         ----------
-            msg (Message): The input message containing the image data.
+            msg (Message), bytes | np.ndarray, required
+                The input message containing the image data.
+            save_dir, str, default None
+                The directory to save the detected images.
+                Leave it empty if you don't want to save the images.
+            return_bytes, bool, default False
+                Whether to return the processed image as bytes.
 
         Returns
         -------
