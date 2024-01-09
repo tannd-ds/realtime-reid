@@ -11,7 +11,6 @@ h, w = 256, 128
 # ResNet50 Parameters
 # Train: --train_all
 MODEL_PATH = 'checkpoints/net_last.pth'
-N_CLASSES = 751
 STRIDE = 2
 LINEAR_NUM = 512
 
@@ -32,22 +31,24 @@ PCB_MODEL_PATH = 'checkpoints/pcb_net_30.pth'
 class PersonDescriptor:
     def __init__(self,
                  use_dense=False,
-                 use_pcb=False):
+                 use_pcb=False,
+                 model_path=None,
+                 n_classes=751):
 
         self.use_dense = use_dense
         self.use_pcb = use_pcb
+        self.n_classes = n_classes
 
         if self.use_pcb:
             self.w, self.h = 384, 192
         else:
             self.w, self.h = 256, 128
 
-
         # Init Data Transform Pipeline
         self.data_transforms = self.init_data_transforms()
 
         # Init Model
-        self.model_structure, self.model = self.init_model()
+        self.model_structure, self.model = self.init_model(model_path)
 
         # Remove the final fc layer and classifier layer
         if self.use_pcb:
@@ -58,17 +59,17 @@ class PersonDescriptor:
         self.model = self.model.eval()
         self.model = self.model.to(device)
 
-    def init_model(self):
+    def init_model(self, model_path: str = None):
         """Init model structure"""
         if self.use_pcb:
-            model_structure = PCB(class_num=N_CLASSES)
+            model_structure = PCB(class_num=self.n_classes)
             model = self.load_network(
                 model_structure,
-                PCB_MODEL_PATH
+                PCB_MODEL_PATH if model_path is None else model_path
             )
         elif self.use_dense:
             model_structure = FtNetDense(
-                class_num=N_CLASSES,
+                class_num=self.n_classes,
                 droprate=DENSE_DROPRATE,
                 stride=DENSE_STRIDE,
                 circle=DENSE_CIRCLE,
@@ -76,17 +77,17 @@ class PersonDescriptor:
             )
             model = self.load_network(
                 model_structure,
-                DENSE_MODEL_PATH
+                DENSE_MODEL_PATH if model_path is None else model_path
             )
         else:
             model_structure = FtNet(
-                class_num=N_CLASSES,
+                class_num=self.n_classes,
                 stride=STRIDE,
                 linear_num=LINEAR_NUM,
             )
             model = self.load_network(
                 model_structure,
-                MODEL_PATH
+                MODEL_PATH if model_path is None else model_path
             )
 
         return model_structure, model
@@ -99,12 +100,11 @@ class PersonDescriptor:
         try:
             print(f"Loading model from {pt_model_path}...")
             model_structure.load_state_dict(torch.load(pt_model_path))
+            print("Model loaded successfully!")
         except FileNotFoundError:
             print(
                 f"Failed to load model from {pt_model_path},",
                 "did you train the model?")
-        finally:
-            print("Model loaded successfully!")
         return model_structure
 
     def init_data_transforms(self):
