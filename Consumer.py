@@ -1,108 +1,134 @@
 import argparse
+from queue import Queue
+import numpy as np
 import cv2
-from flask import Flask, Response, render_template
+import threading
 from kafka import KafkaConsumer
-from realtime_reid import Pipeline
+from realtime_reid.pipeline import Pipeline
+
+DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"
+DEFAULT_TOPIC_2 = "NULL"  # No second topic by default
+DEFAULT_APPLY_REID = False  # Do not apply reid by default
 
 
 def parse_args():
-    """
-    Parse User's input arguments.
-    """
+    """Parse User's input arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("-b", "--bootstrap_server",
+    parser.add_argument("-bs", "--bootstrap-servers",
                         type=str,
                         default="localhost:9092",
-                        help="Kafka Bootstrap Server")
-    parser.add_argument("-t0", "--topic_0",
+                        help="The address of the Kafka bootstrap"
+                        "servers in the format 'host:port'")
+    parser.add_argument("-t", "--topic", "--topic-1",
                         type=str,
-                        default="topic_camera_00",
-                        help="The Topic Name for Camera 0.")
-    parser.add_argument("-t1", "--topic_1",
+                        required=True,
+                        help="The name of the first kafka topic")
+    parser.add_argument("-t2", "--topic-2",
                         type=str,
-                        default="topic_camera_01",
-                        help="The Topic Name for Camera 1.")
-    parser.add_argument("-p", "--port",
-                        type=int,
-                        default=5000,
-                        help="Port to run the Application.")
+                        default="NULL",
+                        help="The name of the second kafka topic (optional)")
+    parser.add_argument("-r", "--reid",
+                        type=str,
+                        choices=["y", "n", "spark"],
+                        default="n",
+                        help="Set this 'y' if you want to apply reid on the"
+                        "images, 'spark' if you want to run the spark and")
+
+    # misc
+    parser.add_argument("-s", "--save-dir",
+                        type=str,
+                        default=None,
+                        help="The directory to save the detected images."
+                        "Leave it empty if you don't want to save the images")
     return parser.parse_args()
 
 
-# User input arguments Constants
 args = vars(parse_args())
-BOOSTRAP_SERVER = args['bootstrap_server']
-TOPIC_0 = args['topic_0']
-TOPIC_1 = args['topic_1']
-PORT = args['port']
+BOOTSTRAP_SERVERS = args['bootstrap_servers']
+TOPIC_1 = args['topic']
+TOPIC_2 = args['topic_2']
+INTEGRATE_SPARK = (args['reid'] == "spark")
+APPLY_REID = (args['reid'] == "y" or INTEGRATE_SPARK)
 
-reid_pipeline = Pipeline()
-
-# Fire up the Kafka Consumers
-consumer1 = KafkaConsumer(
-    TOPIC_0,
-    bootstrap_servers=[BOOSTRAP_SERVER])
-
-consumer2 = KafkaConsumer(
-    TOPIC_1,
-    bootstrap_servers=[BOOSTRAP_SERVER])
-
-app = Flask(__name__)
+reid_pipeline = None
+if APPLY_REID and not INTEGRATE_SPARK:
+    reid_pipeline = Pipeline()
 
 
-@app.route('/')
-def index():
-    """
-    Main Route that displays the Dashboard for our Cameras.
-    """
-    return render_template('index.html')
+# Create a Queue to hold the processed images
+processed_images = Queue()
 
 
-@app.route('/camera1', methods=['GET'])
-def camera1():
-    """Route that contains the data from Camera 1."""
-    return Response(
-        get_video_stream(consumer1),
-        mimetype='multipart/x-mixed-replace; boundary=frame')
-
-
-@app.route('/camera2', methods=['GET'])
-def camera2():
-    """Route that contains the data from Camera 2."""
-    return Response(
-        get_video_stream(consumer2),
-        mimetype='multipart/x-mixed-replace; boundary=frame')
-
-
-def get_video_stream(consumer):
-    """
-    Generates a video stream by processing messages from a consumer.
-
-    Parameters
-    ----------
-    consumer : object
-        The consumer object that provides messages.
-
-    Yields
-    ------
-    bytes
-        A frame of the video stream in the form of a JPEG image.
-    """
+def process_messages(consumer: KafkaConsumer,
+                     consumer_name: str):
     for msg in consumer:
+        # Process the message
+        final_img = np.frombuffer(msg.value, dtype=np.uint8)
+        final_img = cv2.imdecode(final_img, cv2.IMREAD_COLOR)
+        if APPLY_REID and not INTEGRATE_SPARK:
+            final_img = reid_pipeline.process(msg.value, save_dir=args['save_dir'])
 
-        final_img = reid_pipeline.process(msg)
+        # Add the processed image to the Queue
+        processed_images.put((consumer_name, final_img))
 
-        is_success, buffer = cv2.imencode(".jpg", final_img)
-        buffered = buffer.tobytes()
 
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n'
-               + buffered
-               + b'\r\n\r\n')
+def start_threads(consumer_00: KafkaConsumer,
+                  consumer_01: KafkaConsumer):
+    """Start processing messages from both topics using threads"""
+    thread_0 = threading.Thread(
+        target=process_messages,
+        args=(consumer_00, "Camera 00")
+    )
+    thread_1 = threading.Thread(
+        target=process_messages,
+        args=(consumer_01, "Camera 01")
+    )
+
+    thread_0.start()
+    thread_1.start()
+
+    return thread_0, thread_1
+
+
+def display_images():
+    """Display the processed images in the main thread"""
+    while True:
+        # Get the next processed image and display it
+        consumer_name, final_img = processed_images.get()
+        cv2.imshow(consumer_name, final_img)
+
+        # Press Q on keyboard to exit
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            break
 
 
 def main():
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    # Spark streaming thread
+    if INTEGRATE_SPARK:
+        from streaming.spark_services.spark_streaming import start_spark
+        thread = threading.Thread(target=start_spark)
+        thread.start()
+
+    # Create Kafka consumers for both topics
+    consumer_00 = KafkaConsumer(
+        TOPIC_1,
+        bootstrap_servers=[BOOTSTRAP_SERVERS]
+    )
+
+    consumer_01 = KafkaConsumer(
+        TOPIC_2,
+        bootstrap_servers=[BOOTSTRAP_SERVERS]
+    )
+
+    thread_0, thread_1 = start_threads(consumer_00, consumer_01)
+    display_images()
+
+    # Wait for both threads to finish
+    thread_0.join()
+    thread_1.join()
+
+    # Closes all the frames
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
