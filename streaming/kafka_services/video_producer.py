@@ -1,10 +1,11 @@
 import os
-import cv2
 import time
+
+import cv2
 from kafka import KafkaProducer
 
 
-class VideoProducer():
+class VideoProducer:
     def __init__(
             self,
             topic: str,
@@ -19,7 +20,7 @@ class VideoProducer():
         self.producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
         self.TOPIC = topic
 
-    def encode_and_produce(self, frame, interval: int):
+    def encode_and_produce(self, frame, interval: float):
         frame = self.process_frame(frame)
 
         # Convert image to jpg format
@@ -38,7 +39,7 @@ class VideoProducer():
         if self.INTERVAL == -1:
             self.INTERVAL = 1 / video.get(cv2.CAP_PROP_FPS)
 
-        while (video.isOpened()):
+        while video.isOpened():
             success, frame = video.read()
 
             # Ensure file was read successfully
