@@ -1,11 +1,14 @@
-<h1 align="center">⚡Real-Time Person Re-ID in Multi-Camera Surveillance Systems⚡<br></h1>
+<h2 style="text-align: center">
+    ⚡Real-Time Person Re-ID in Multi-Camera Surveillance Systems⚡<br>
+</h2>
 
-<p align="center">Build with</p>
-<p align="center">
-  <img src="https://img.shields.io/badge/-Apache Kafka-05122A?style=for-the-badge&logo=apachekafka"/>
-  <img src="https://img.shields.io/badge/-Apache Spark-05122A?style=for-the-badge&logo=apachespark"/>
-  <img src="https://img.shields.io/badge/-Flask-05122A?style=for-the-badge&logo=flask"/>
-  <img src="https://img.shields.io/badge/-Python-05122A?style=for-the-badge&logo=python"/>
+<p style="text-align: center">Build with</p>
+<p style="text-align: center">
+  <img alt="kafka" src="https://img.shields.io/badge/-Apache Kafka-05122A?style=for-the-badge&logo=apachekafka"/>
+  <img alt="spark" src="https://img.shields.io/badge/-Apache Spark-05122A?style=for-the-badge&logo=apachespark"/>
+  <img alt="torch" src="https://img.shields.io/badge/-Pytorch-05122A?style=for-the-badge&logo=pytorch"/>
+  <img alt="flask" src="https://img.shields.io/badge/-Flask-05122A?style=for-the-badge&logo=flask"/>
+  <img alt="python" src="https://img.shields.io/badge/-Python-05122A?style=for-the-badge&logo=python"/>
 </p>
 
 ## Introduction
@@ -60,26 +63,24 @@ pip install -r requirements.txt
 ```
 /path/to/your/kafka/bin/kafka-server-start.sh /path/to/your/kafka/config/server.properties
 ```
-- Run the  Consumer (our Flask Server) to start listening and receiving data from our Kafka Producer.
+- Run the  Consumer. You can run `python Consumer.py --help` to see the arguments.
 ```bash
-python Consumer.py
+python Consumer.py --topic topic_name --topic-2 topic_name_2 --reid y
 ```
-
-- Go to (default to) [`localhost:5000`](localhost:5000) to check if our Flask Server is running successfully.
 
 - Run Producers to publish recorded footage from our cameras on these *topics* (run each producer separately).
 ```bash
-python Producer.py --topic topic_camera_00 --camera ./videos/camera_00.mp4
+python Producer.py --topic topic_name --camera /path/to/your/video.mp4
 ```
 ```bash
-python Producer.py --topic topic_camera_01 --camera ./videos/camera_01.mp4
+python Producer.py --topic topic_name_2 --camera /path/to/your/video.mp4
 ```
 
-- Now Refresh [`localhost:5000`](localhost:5000), you should see both footages displayed on the page. 
+- A cv2 window will pop up if the producer is running successfully (2 windows if run 2 topics).
 
 ## Contribution
 This repo is continuously fixed and updated over time, feel free to fix some issues/bugs, all are welcome here!
 
 ## About Us
 
-We are a Group of Students majoring in Data Science at **University of Information Technology (UIT), VNU-HCM**.
+We are a Group of Students majoring in Data Science at **University of Information Technology (UIT), VNU-HCM** of Vietnam.
