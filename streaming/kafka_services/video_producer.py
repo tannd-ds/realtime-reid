@@ -79,12 +79,10 @@ class VideoProducer:
         """
         try:
             if os.path.isfile(source):
-                print(
-                    f"Publish from video {source} to topic {self.TOPIC}")
+                print(f"Publish from video {source} to topic {self.TOPIC}")
                 self.publish_from_video(source)
             else:
-                print(
-                    f"Publish from folder {source} to topic {self.TOPIC}")
+                print(f"Publish from folder {source} to topic {self.TOPIC}")
                 self.publish_from_img_folder(source)
 
             print('Publish complete!')

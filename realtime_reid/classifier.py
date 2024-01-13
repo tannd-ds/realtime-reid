@@ -114,10 +114,21 @@ class PersonReID:
         new_embeddings: torch.Tensor,
         target_id: int
     ) -> None:
+        """
+        Update the embeddings and ids.
+
+        Parameters
+        ----------
+        new_embeddings: torch.Tensor, required
+            The new embeddings tensor.
+        target_id: int, required
+            The id of the new embeddings tensor.
+        """
         self.embeddings = new_embeddings
         if new_embeddings.shape[0] > len(self.ids):
             self.ids.append(target_id)
         if self.current_max_id == target_id:
             self.current_max_id += 1
+
         assert len(self.ids) == self.embeddings.shape[0], \
             "The number of ids must be equal to the number of embeddings."

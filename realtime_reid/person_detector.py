@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = 0 if torch.cuda.is_available() else "cpu"
 
 
 class PersonDetector():
@@ -34,5 +34,5 @@ class PersonDetector():
         )
 
         # Perform object detection
-        results = self.yolo(image, classes=[0])
+        results = self.yolo(image, classes=[0], device=device)
         return results
