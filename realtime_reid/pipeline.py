@@ -2,11 +2,17 @@ import os
 
 import cv2
 import numpy as np
+import torch
 
 from .classifier import PersonReID
 from .feature_extraction import PersonDescriptor
 from .person_detector import PersonDetector
-from .visualization_utils import color
+from .visualization_utils import color, drawer
+
+from deep_sort.application_util import preprocessing
+from deep_sort.deep_sort import nn_matching
+from deep_sort.deep_sort.detection import Detection
+from deep_sort.deep_sort.tracker import Tracker
 
 
 class Pipeline:
@@ -16,6 +22,15 @@ class Pipeline:
         self.detector = PersonDetector('yolov8n.pt')
         self.descriptor = PersonDescriptor(use_pcb=True)
         self.classifier = PersonReID()
+
+        # Deep SORT
+        max_cosine_distance = 0.2
+        nn_budget = None
+        metric = nn_matching.NearestNeighborDistanceMetric(
+            "cosine", max_cosine_distance, nn_budget
+        )
+        self.nms_max_overlap = 1.0
+        self.tracker = Tracker(metric)
 
     def process(
         self,
@@ -53,26 +68,33 @@ class Pipeline:
         image_data = np.frombuffer(msg, dtype=np.uint8)
         final_img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
-        for detected_box in detected_data.boxes:
-            # detected_box.xyxy is a (1, 4) tensor
-            xyxy = detected_box.xyxy.squeeze().tolist()
-            xmin, ymin, xmax, ymax = map(int, xyxy)
+        # skip if there is no detection
+        if len(detected_data.boxes) == 0:
+            return final_img
 
-            cropped_img = final_img[ymin:ymax, xmin:xmax, :]
+        boxes = np.array([box.xyxy.squeeze().tolist() for box in detected_data.boxes])
+        scores = np.array([box.conf.squeeze().tolist() for box in detected_data.boxes])
+
+        features = torch.Tensor()
+        for i, box in enumerate(boxes):
+            x_min, y_min, x_max, y_max = map(int, box)
+
+            cropped_img = final_img[y_min:y_max, x_min:x_max, :]
+            current_feature = self.descriptor.extract_feature(cropped_img).cpu()
+            features = torch.cat((features, current_feature), dim=0)
 
             # A small solution for #3 (initial partial visibility)
             # This is a temporary solution, but it works beautifully.
             # Solution: Check if the person is fully visible
             offset = 2  # because the bbox is not (always) accurate
-            lower_bound = ((xmin - offset) <= 0 or (ymin - offset) <= 0)
-            upper_bound = (xmax + offset >= final_img.shape[1]
-                           or (ymax + offset) >= final_img.shape[0])
+            lower_bound = ((x_min - offset) <= 0 or (y_min - offset) <= 0)
+            upper_bound = (x_max + offset >= final_img.shape[1]
+                           or (y_max + offset) >= final_img.shape[0])
             if lower_bound or upper_bound:
                 current_id = -1
             else:
-                current_person = self.descriptor.extract_feature(cropped_img)
                 current_id = self.classifier.identify(
-                    target=current_person,
+                    target=current_feature,
                     do_update=True
                 )
 
@@ -85,22 +107,41 @@ class Pipeline:
                 )
 
             # Draw bounding box and label
-            label = f"{current_id}"
-            cv2.rectangle(
-                img=final_img,
-                pt1=(xmin, ymin),
-                pt2=(xmax, ymax),
-                color=color.create_unique_color(current_id),
-                thickness=2,
+            final_img = drawer.draw(
+                final_img,
+                str(current_id),
+                (x_min, y_min),
+                (x_max, y_max),
+                color.create_unique_color(current_id)
             )
-            cv2.putText(
-                img=final_img,
-                text=label,
-                org=(xmin, ymin),
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=1,
-                color=color.create_unique_color(current_id),
-                thickness=2,
+
+        # turn boxes from [x1, y1, x2, y2] to [x1, y1, w, h]
+        boxes[:, 2] -= boxes[:, 0]
+        boxes[:, 3] -= boxes[:, 1]
+        detections = [Detection(bbox, score, feature)
+                      for bbox, score, feature
+                      in zip(boxes, scores, features)]
+
+        # Run non-maxima suppression.
+        indices = preprocessing.non_max_suppression(boxes, self.nms_max_overlap, scores)
+        detections = [detections[i] for i in indices]
+
+        # Update tracker.
+        self.tracker.predict()
+        self.tracker.update(detections)
+
+        # Draw bounding boxes and labels
+        for track in self.tracker.tracks:
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+            bbox = track.to_tlbr().astype(int)
+            label = f"{track.track_id}"
+            final_img = drawer.draw(
+                final_img,
+                label,
+                (bbox[0], bbox[1]),
+                (bbox[2], bbox[3]),
+                color.create_unique_color(track.track_id)
             )
 
         if return_bytes:
