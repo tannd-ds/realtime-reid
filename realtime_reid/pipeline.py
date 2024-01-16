@@ -53,6 +53,7 @@ class Pipeline:
         image_data = np.frombuffer(msg, dtype=np.uint8)
         final_img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
 
+        ids = []
         for detected_box in detected_data.boxes:
             # detected_box.xyxy is a (1, 4) tensor
             xyxy = detected_box.xyxy.squeeze().tolist()
@@ -75,6 +76,7 @@ class Pipeline:
                     target=current_person,
                     do_update=True
                 )
+            ids.append(current_id)
 
             # Save the cropped image before drawing the bounding box
             if save_dir is not None:
@@ -83,6 +85,10 @@ class Pipeline:
                     f"{save_dir}/{save_filename}.jpg",
                     cropped_img
                 )
+
+        for detected_box, current_id in zip(detected_data.boxes, ids):
+            xyxy = detected_box.xyxy.squeeze().tolist()
+            xmin, ymin, xmax, ymax = map(int, xyxy)
 
             # Draw bounding box and label
             label = f"{current_id}"

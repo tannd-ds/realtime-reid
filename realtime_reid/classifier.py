@@ -32,10 +32,7 @@ class PersonReID:
             "from_file and from_tensor can't be set at the same time."
 
         # Set up the threshold
-        self.CONFIDENT_THRESHOLD = {
-            'extreme': 0.90,
-            'normal': 0.85,
-        }
+        self.CONFIDENT_THRESHOLD = dict(extreme=0.95, normal=0.85)
         self.cos_scorer = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
 
         # Init the embeddings
@@ -57,7 +54,7 @@ class PersonReID:
     ) -> torch.Tensor:
         """Calculate the relation score (Cosine) between
         the target and items in the embeddings."""
-        results = None
+        results: torch.Tensor = torch.Tensor()
         if score == "cosine":
             # Calculate score using Cosine Similarity
             results = self.cos_scorer(target, self.embeddings)
@@ -90,10 +87,7 @@ class PersonReID:
         # The only other option (below) is the id of the best match person.
         target_id = self.current_max_id
 
-        if self.embeddings.shape[0] == 0:
-            # When no one is detected
-            new_embeddings = target
-        else:
+        if self.embeddings.shape[0] != 0:
             results = self.calculate_score(target)
 
             # Get the best match person
@@ -103,6 +97,9 @@ class PersonReID:
                 target_id = self.ids[top_ppl]
 
             new_embeddings = torch.cat((self.embeddings, target), dim=0)
+        else:
+            # When no one is detected
+            new_embeddings = target
 
         if do_update:
             self._update_embeddings(new_embeddings, target_id)
