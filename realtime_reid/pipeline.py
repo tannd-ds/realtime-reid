@@ -10,12 +10,26 @@ from .visualization_utils import color
 
 
 class Pipeline:
-    def __init__(self) -> None:
+    def __init__(self,
+                detector: PersonDetector = None,
+                descriptor: PersonDescriptor = None,
+                classifier: PersonReID = None) -> None:
         """Initialize the pipeline by creating the necessary objects."""
-        # Backbone models
-        self.detector = PersonDetector('yolov8n.pt')
-        self.descriptor = PersonDescriptor(use_pcb=True)
-        self.classifier = PersonReID()
+
+        if detector is None:
+            self.detector = PersonDetector('yolov8n.pt')
+        else:
+            self.detector = detector
+
+        if descriptor is None:
+            self.descriptor = PersonDescriptor()
+        else:
+            self.descriptor = descriptor
+
+        if classifier is None:
+            self.classifier = PersonReID()
+        else:
+            self.classifier = classifier
 
     def process(
         self,
