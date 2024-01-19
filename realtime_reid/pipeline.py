@@ -11,25 +11,14 @@ from .visualization_utils import color
 
 class Pipeline:
     def __init__(self,
-                detector: PersonDetector = None,
-                descriptor: PersonDescriptor = None,
-                classifier: PersonReID = None) -> None:
+                detector: PersonDetector = PersonDetector(),
+                descriptor: PersonDescriptor = PersonDetector(),
+                classifier: PersonReID = PersonReID()) -> None:
         """Initialize the pipeline by creating the necessary objects."""
 
-        if detector is None:
-            self.detector = PersonDetector('yolov8n.pt')
-        else:
-            self.detector = detector
-
-        if descriptor is None:
-            self.descriptor = PersonDescriptor()
-        else:
-            self.descriptor = descriptor
-
-        if classifier is None:
-            self.classifier = PersonReID()
-        else:
-            self.classifier = classifier
+        self.detector = detector
+        self.descriptor = descriptor
+        self.classifier = classifier
 
     def process(
         self,
@@ -56,10 +45,10 @@ class Pipeline:
             Image: The processed image with bounding boxes and labels for
         detected persons.
         """
-        if not isinstance(msg, bytes):
-            raise TypeError("msg must be of type bytes.")
+        if not isinstance(msg, bytes) and not isinstance(msg, np.ndarray):
+            raise TypeError(f"msg must be of type bytes or numpy array. Got {type(msg)}.")
 
-        detected_data = self.detector.detect_complex(msg)
+        detected_data = self.detector.detect(msg)
         if len(detected_data) == 1:
             detected_data = detected_data[0]
 

@@ -11,7 +11,7 @@ class PersonDetector:
         # Load YOLOv8 Model
         self.yolo = YOLO(model_path)
 
-    def detect_complex(
+    def detect(
         self,
         input_bytes: bytes,
     ):
