@@ -6,12 +6,12 @@ from ultralytics import YOLO
 device = 0 if torch.cuda.is_available() else "cpu"
 
 
-class PersonDetector():
+class PersonDetector:
     def __init__(self, model_path: str = 'yolov5n.pt'):
         # Load YOLOv8 Model
         self.yolo = YOLO(model_path)
 
-    def detect_complex(
+    def detect(
         self,
         input_bytes: bytes,
     ):

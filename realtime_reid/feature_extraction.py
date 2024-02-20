@@ -155,7 +155,7 @@ class PersonDescriptor:
         img = self.data_transforms(img)
         img = img.unsqueeze(0)
         img = img.to(device)
-        n, c, h, w = img.size()
+        n, c, _, _ = img.size()
 
         feature_map = torch.FloatTensor(n, LINEAR_NUM).zero_()
         if self.use_pcb:
@@ -176,11 +176,11 @@ class PersonDescriptor:
 
         # Normalize feature
         if self.use_pcb:
-            fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True) * np.sqrt(6)
-            feature_map = feature_map.div(fnorm.expand_as(feature_map))
+            f_norm = torch.norm(feature_map, p=2, dim=1, keepdim=True) * np.sqrt(6)
+            feature_map = feature_map.div(f_norm.expand_as(feature_map))
             feature_map = feature_map.view(feature_map.size(0), -1)
         else:
-            fnorm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
-            feature_map = feature_map.div(fnorm.expand_as(feature_map))
+            f_norm = torch.norm(feature_map, p=2, dim=1, keepdim=True)
+            feature_map = feature_map.div(f_norm.expand_as(feature_map))
 
         return feature_map

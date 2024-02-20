@@ -16,12 +16,24 @@ from deep_sort.deep_sort.tracker import Tracker
 
 
 class Pipeline:
-    def __init__(self) -> None:
+    def __init__(self,
+                detector: PersonDetector = PersonDetector(),
+                descriptor: PersonDescriptor = PersonDetector(),
+                classifier: PersonReID = PersonReID()) -> None:
         """Initialize the pipeline by creating the necessary objects."""
-        # Backbone models
-        self.detector = PersonDetector('yolov8n.pt')
-        self.descriptor = PersonDescriptor(use_pcb=True)
-        self.classifier = PersonReID()
+
+        self.detector = detector
+        self.descriptor = descriptor
+        self.classifier = classifier
+
+        # Deep SORT
+        max_cosine_distance = 0.2
+        nn_budget = None
+        metric = nn_matching.NearestNeighborDistanceMetric(
+            "cosine", max_cosine_distance, nn_budget
+        )
+        self.nms_max_overlap = 1.0
+        self.tracker = Tracker(metric)
 
         # Deep SORT
         max_cosine_distance = 0.2
@@ -57,10 +69,10 @@ class Pipeline:
             Image: The processed image with bounding boxes and labels for
         detected persons.
         """
-        if not isinstance(msg, bytes):
-            raise TypeError("msg must be of type bytes.")
+        if not isinstance(msg, bytes) and not isinstance(msg, np.ndarray):
+            raise TypeError(f"msg must be of type bytes or numpy array. Got {type(msg)}.")
 
-        detected_data = self.detector.detect_complex(msg)
+        detected_data = self.detector.detect(msg)
         if len(detected_data) == 1:
             detected_data = detected_data[0]
 
@@ -97,6 +109,7 @@ class Pipeline:
                     target=current_feature,
                     do_update=True
                 )
+            ids.append(current_id)
 
             # Save the cropped image before drawing the bounding box
             if save_dir is not None:
@@ -105,6 +118,10 @@ class Pipeline:
                     f"{save_dir}/{save_filename}.jpg",
                     cropped_img
                 )
+
+        for detected_box, current_id in zip(detected_data.boxes, ids):
+            xyxy = detected_box.xyxy.squeeze().tolist()
+            xmin, ymin, xmax, ymax = map(int, xyxy)
 
             # Draw bounding box and label
             final_img = drawer.draw(
