@@ -88,6 +88,7 @@ class Pipeline:
         scores = np.array([box.conf.squeeze().tolist() for box in detected_data.boxes])
 
         features = torch.Tensor()
+        ids = []
         for i, box in enumerate(boxes):
             x_min, y_min, x_max, y_max = map(int, box)
 
@@ -119,18 +120,18 @@ class Pipeline:
                     cropped_img
                 )
 
-        for detected_box, current_id in zip(detected_data.boxes, ids):
-            xyxy = detected_box.xyxy.squeeze().tolist()
-            xmin, ymin, xmax, ymax = map(int, xyxy)
+        # for detected_box, current_id in zip(detected_data.boxes, ids):
+        #     xyxy = detected_box.xyxy.squeeze().tolist()
+        #     xmin, ymin, xmax, ymax = map(int, xyxy)
 
-            # Draw bounding box and label
-            final_img = drawer.draw(
-                final_img,
-                str(current_id),
-                (x_min, y_min),
-                (x_max, y_max),
-                color.create_unique_color(current_id)
-            )
+        #     # Draw bounding box and label
+        #     final_img = drawer.draw(
+        #         final_img,
+        #         str(current_id),
+        #         (x_min, y_min),
+        #         (x_max, y_max),
+        #         color.create_unique_color(current_id)
+        #     )
 
         # turn boxes from [x1, y1, x2, y2] to [x1, y1, w, h]
         boxes[:, 2] -= boxes[:, 0]

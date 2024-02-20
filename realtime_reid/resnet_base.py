@@ -109,6 +109,7 @@ class FtNet(nn.Module):
         x = self.model.bn1(x)
         x = self.model.relu(x)
         x = self.model.maxpool(x)
+
         x = self.model.layer1(x)
         x = self.model.layer2(x)
         x = self.model.layer3(x)

@@ -5,6 +5,8 @@ import cv2
 import threading
 from kafka import KafkaConsumer
 from realtime_reid.pipeline import Pipeline
+from realtime_reid.feature_extraction import PersonDescriptor
+from realtime_reid.person_detector import PersonDetector
 
 DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"
 DEFAULT_TOPIC_2 = "NULL"  # No second topic by default
@@ -52,7 +54,11 @@ APPLY_REID = (args['reid'] == "y" or INTEGRATE_SPARK)
 
 reid_pipeline = None
 if APPLY_REID and not INTEGRATE_SPARK:
-    reid_pipeline = Pipeline()
+    detector = PersonDetector('yolov8n.pt')
+    descriptor = PersonDescriptor(use_pcb=True,
+                                  model_path='./checkpoints/pcb_net_30.pth')
+
+    reid_pipeline = Pipeline(detector=detector, descriptor=descriptor)
 
 
 # Create a Queue to hold the processed images
